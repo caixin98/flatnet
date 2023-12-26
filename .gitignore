@@ -1,3 +1,4 @@
 execs/flatnet.sh
 .ipynb_checkpoints/FlatNet-separable-checkpoint.ipynb
 *.sh
+data/
