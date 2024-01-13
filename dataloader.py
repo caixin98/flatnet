@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 import torch.distributed as dist
-
+import os
 import cv2
 import numpy as np
 from config import initialise
@@ -95,7 +95,7 @@ class PhaseMaskDataset(Dataset):
         self.args = args
         self.image_dir = args.image_dir
         self.max_len = max_len
-
+        self.source_path = None
         self.source_paths, self.target_paths = self._load_dataset()
 
         if is_local_rank_0:
@@ -183,6 +183,16 @@ class PhaseMaskDataset(Dataset):
 
     def __getitem__(self, index):
         source_path = self.source_paths[index]
+        if self.source_path == None and os.path.exists(source_path):
+            self.source_path = source_path
+
+        if not os.path.exists(source_path):
+            print(source_path, " does not exist")
+            if self.source_path == None:
+                print("No source path")
+            source_path = self.source_path
+
+
         source = self._img_load(source_path, img_mode="source")
 
         if self.mode == "test":
@@ -218,6 +228,7 @@ def get_dataloaders(args, is_local_rank_0: bool = True):
     test_dataset = PhaseMaskDataset(args, mode="test", is_local_rank_0=is_local_rank_0)
 
     if is_local_rank_0:
+        # print("1111111111111111111111111111111111111")
         logging.info(
             f"Dataset: {args.dataset_name} Len Train: {len(train_dataset)} Val: {len(val_dataset)}  Test: {len(test_dataset)}"
         )
@@ -242,8 +253,8 @@ def get_dataloaders(args, is_local_rank_0: bool = True):
             batch_size=args.batch_size,
             shuffle=shuffle,
             num_workers=args.num_threads,
-            pin_memory=False,
-            drop_last=True,
+            pin_memory=True,
+            # drop_last=True,
             sampler=train_sampler,
         )
 
@@ -263,8 +274,8 @@ def get_dataloaders(args, is_local_rank_0: bool = True):
             batch_size=args.batch_size,
             shuffle=shuffle,
             num_workers=args.num_threads,
-            pin_memory=False,
-            drop_last=True,
+            pin_memory=True,
+            # drop_last=True,
             sampler=val_sampler,
         )
 

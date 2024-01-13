@@ -25,50 +25,46 @@ def fft_conv2d(input, kernel):
     :param bias: shape of (B, Cout, H, W)
     :return:
     """
-    input = torch.fft.fft2(input)
-    kernel = torch.fft.fft2(kernel)
+    input = torch.rfft(input, 2, onesided=False)
+    kernel = torch.rfft(kernel, 2, onesided=False)
 
     # Compute the multiplication
     # (a+bj)*(c+dj) = (ac-bd)+(ad+bc)j
-    # real = input[..., 0] * kernel[..., 0] - input[..., 1] * kernel[..., 1]
-    # im = input[..., 0] * kernel[..., 1] + input[..., 1] * kernel[..., 0]
+    real = input[..., 0] * kernel[..., 0] - input[..., 1] * kernel[..., 1]
+    im = input[..., 0] * kernel[..., 1] + input[..., 1] * kernel[..., 0]
 
     # Stack both channels and sum-reduce the input channels dimension
-    out_complex = input * kernel
-    out = torch.fft.ifft2(out_complex).real.squeeze(-1)
+    out = torch.stack([real, im], -1)
+
+    out = torch.irfft(out, 2, onesided=False)
     return out
 
 
 def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     """
-    Get Wiener filter matrix from PSF.
-    :param psf: The point spread function.
-    :param Gamma: The regularization parameter.
-    :param centre_roll: Boolean to determine whether to roll the PSF to the center.
-    :return: The Wiener filter matrix.
+    Get PSF matrix
+    :param psf:
+    :param gamma_exp:
+    :return:
     """
 
+    # Gamma = 10 ** (-0.1 * gamma_exp)
     if centre_roll:
         for dim in range(2):
-            psf = roll_n(psf, axis=dim, n=psf.shape[dim] // 2)
+            psf = roll_n(psf, axis=dim, n=psf.size(dim) // 2)
 
     psf = psf.unsqueeze(0)
 
-    # Perform 2D FFT
-    H = torch.fft.fft2(psf)
+    H = torch.rfft(psf, 2, onesided=False)
+    Habsq = H[:, :, :, 0].pow(2) + H[:, :, :, 1].pow(2)
 
-    # Compute the absolute square of H
-    H_conj = torch.conj(H)
-    Habsq = H * H_conj
+    W_0 = (torch.div(H[:, :, :, 0], (Habsq + Gamma))).unsqueeze(-1)
+    W_1 = (-torch.div(H[:, :, :, 1], (Habsq + Gamma))).unsqueeze(-1)
+    W = torch.cat((W_0, W_1), -1)
 
-    # Create Wiener filter
-    W = torch.conj(H) / (Habsq.real + Gamma)
+    weiner_mat = torch.irfft(W, 2, onesided=False)
 
-    # Perform 2D inverse FFT
-    wiener_mat = torch.fft.ifft2(W)
-
-    # Extract the real part
-    return wiener_mat.real[0]
+    return weiner_mat[0]
 
 
 class FFTLayer(nn.Module):
@@ -77,9 +73,7 @@ class FFTLayer(nn.Module):
         self.args = args
 
         # No grad if you're not training this layer
-        # requires_grad = not (args.fft_epochs == args.num_epochs)
-        
-        requires_grad = args.fft_requires_grad
+        requires_grad = not (args.fft_epochs == args.num_epochs)
 
         psf = torch.tensor(np.load(args.psf_mat)).float()
 
@@ -122,7 +116,7 @@ class FFTLayer(nn.Module):
 
         # Make 1 x 1 x H x W
         self.fft_layer = self.fft_layer.unsqueeze(0).unsqueeze(0)
-        # print("self.fft_layer.shape", self.fft_layer.shape)
+
         # FFT Layer dims
         _, _, fft_h, fft_w = self.fft_layer.shape
 

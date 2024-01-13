@@ -8,7 +8,7 @@ from collections import defaultdict
 import numpy as np
 import logging
 import cv2
-
+from pathlib import Path
 # Torch Libs
 import torch
 from torch.nn import functional as F
@@ -25,9 +25,11 @@ from models import get_model
 from metrics import PSNR
 from config import initialise
 from skimage.metrics import structural_similarity as ssim
+from utils.model_serialization import load_state_dict
 
 # LPIPS
-from PerceptualSimilarity.models import PerceptualLoss
+import lpips
+loss_fn_alex = lpips.LPIPS(net='alex') # best forward scores
 
 # Typing
 from typing import TYPE_CHECKING
@@ -71,13 +73,23 @@ def main(_run):
 
     # Model
     G, FFT, _ = get_model.model(args)
+
+    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-multi"
+    model_gen_path = ckpt_dir / "Epoch_90_model_latest.pth"
+    model_fft_path = ckpt_dir / "Epoch_90_FFT_latest.pth"
+
+    gen_ckpt = torch.load(model_gen_path, map_location=torch.device("cpu"))
+    fft_ckpt = torch.load(model_fft_path, map_location=torch.device("cpu"))
+
+    # G.load_state_dict(gen_ckpt["state_dict"])
+    load_state_dict(G, gen_ckpt["state_dict"])
+    load_state_dict(FFT, fft_ckpt["state_dict"])
+
     G = G.to(device)
     FFT = FFT.to(device)
 
     # LPIPS Criterion
-    lpips_criterion = PerceptualLoss(
-        model="net-lin", net="alex", use_gpu=True, gpu_ids=[device]
-    ).to(device)
+    lpips_criterion = loss_fn_alex.to(device)
 
     # Load Models
     (G, FFT, _), _, global_step, start_epoch, loss = load_models(
@@ -103,9 +115,12 @@ def main(_run):
     logging.info(
         f"Loaded experiment {args.exp_name}, dataset {args.dataset_name}, trained for {start_epoch} epochs."
     )
-
+    if args.val_train:
+        logging.info("Validating on train set.")
+        data.val_loader = data.train_loader
     # Run val for an epoch
     avg_metrics.reset()
+    print("len(data.val_loader)", len(data.val_loader))  
     pbar = tqdm(range(len(data.val_loader) * args.batch_size), dynamic_ncols=True)
 
     if args.device == "cuda:0":
@@ -128,7 +143,6 @@ def main(_run):
     with torch.no_grad():
         G.eval()
         FFT.eval()
-
         for i, batch in enumerate(data.val_loader):
             metrics_dict = defaultdict(float)
 
@@ -159,11 +173,12 @@ def main(_run):
 
             # PSNR
             metrics_dict["PSNR"] += PSNR(output, target).item()
+          
             metrics_dict["LPIPS_01"] += lpips_criterion(
                 output.mul(0.5).add(0.5), target.mul(0.5).add(0.5)
-            ).item()
+            ).mean().item()
 
-            metrics_dict["LPIPS_11"] += lpips_criterion(output, target).item()
+            metrics_dict["LPIPS_11"] += lpips_criterion(output, target).mean().item()
 
             for e in range(args.batch_size):
                 # Compute SSIM
@@ -184,9 +199,8 @@ def main(_run):
                 target_numpy = (
                     target[e].mul(0.5).add(0.5).permute(1, 2, 0).cpu().detach().numpy()
                 )
-
                 metrics_dict["SSIM"] += ssim(
-                    target_numpy, output_numpy, multichannel=True, data_range=1.0
+                    target_numpy, output_numpy, multichannel=True, data_range=1.0,channel_axis = -1
                 )
 
                 # Dump to output folder

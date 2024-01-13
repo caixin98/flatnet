@@ -7,7 +7,7 @@ ours/naive-fft-(fft_h-fft_w)-learn-(learn_h-learn_w)-meas-(meas_h-meas_w)-kwargs
 """
 from pathlib import Path
 import torch
-
+from types import SimpleNamespace
 
 def base_config():
     exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408"
@@ -80,14 +80,14 @@ def base_config():
     image_height = 384
     image_width = 384
 
-    batch_size = 5
-    num_threads = batch_size  # parallel workers
+    batch_size = 18
+    num_threads = batch_size >> 1  # parallel workers
 
     # ---------------------------------------------------------------------------- #
     # Train Configs
     # ---------------------------------------------------------------------------- #
     # Schedules
-    num_epochs = 31
+    num_epochs = 100
     fft_epochs = num_epochs if is_naive else 0
 
     learning_rate = 3e-4
@@ -113,7 +113,7 @@ def base_config():
     save_filename_latest_FFT = "FFT_latest.pth" if not is_admm else "ADMM_latest.pth"
     save_filename_latest_D = "D_latest.pth"
 
-    log_interval = 150  # the number of iterations (default: 10) to print at
+    log_interval = 10  # the number of iterations (default: 10) to print at
     save_ckpt_interval = log_interval * 10
     save_copy_every_epochs = 10
     # ---------------------------------------------------------------------------- #
@@ -139,7 +139,7 @@ def base_config():
     lambda_perception = 1.2  # 0.006
     lambda_image = 1  # mse
 
-    resume = True
+    resume = False
     finetune = False  # Wont load loss or epochs
 
     # ---------------------------------------------------------------------------- #
@@ -154,11 +154,27 @@ def base_config():
     # choose cpu or cuda:0 device
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     distdataparallel = False
-
+    val_train = False
 
 def ours_meas_1280_1408():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408"
+    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-train"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    val_train = True
 
+def ours_meas_1280_1408_val():
+    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-val"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+
+def ours_meas_1280_1408_single():
+    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-single"
+    batch_size = 5
+    num_threads = 5
 
 def ours_meas_1280_1408_unet_64():
     exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-64"
@@ -358,7 +374,7 @@ def ours_meas_990_1254_finetune_dualcam_1cap():
 
     # Mask
     use_mask = True
-    mask_path = Path("data/phase_psf/box_gaussian_1280_1408_big_mask.npy")
+    mask_path = Path("data/phase_psf/_big_mask.npy")
 
 
 def naive_meas_1280_1408():
@@ -574,6 +590,8 @@ def le_admm_meas_400_400():
 named_config_ll = [
     # Ours
     ours_meas_1280_1408,
+    ours_meas_1280_1408_single,
+    ours_meas_1280_1408_val,
     ours_meas_1280_1408_simulated,
     ours_meas_990_1254,
     ours_meas_990_1254_simulated,
@@ -629,6 +647,37 @@ def initialise(ex):
         ex.named_config(named_config)
     return ex
 
+
+fft_args = {
+    "psf_mat": Path("data/phase_psf/psf.npy"),
+    "psf_height": 1518,
+    "psf_width": 2012,
+    "psf_centre_x": 808,
+    "psf_centre_y": 965,
+    "psf_crop_size_x": 1280,
+    "psf_crop_size_y": 1408,
+    "meas_height": 1518,
+    "meas_width": 2012,
+    "meas_centre_x": 808,
+    "meas_centre_y": 965,
+    "meas_crop_size_x": 1280,
+    "meas_crop_size_y": 1408,
+    "pad_meas_mode": "replicate",
+    # Change meas_crop_size_{x,y} to crop sensor meas. This will assume your sensor is smaller than the
+    # measurement size. True measurement size is 1280x1408x4. Anything smaller than this requires padding of the
+    # cropped measurement and then multiplying this with gaussian filtered rectangular box. For simplicity use the arguments
+    # already set. Currently we are using full measurement. 
+    "image_height": 384,
+    "image_width": 384,
+    "fft_gamma": 20000,  # Gamma for Weiner init
+    "use_mask": False,  # Use mask for cropped meas only
+    "mask_path": Path("data/phase_psf/box_gaussian_1280_1408.npy"),
+    # use Path("box_gaussian_1280_1408.npy") for controlled lighting
+    # use Path("box_gaussian_1280_1408_big_mask.npy") for uncontrolled lighting
+    "fft_requires_grad": False,
+} 
+
+fft_args = SimpleNamespace(**fft_args)
 
 if __name__ == "__main__":
     str_named_config_ll = [str(named_config) for named_config in named_config_ll]
