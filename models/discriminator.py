@@ -37,6 +37,7 @@ class Discriminator(nn.Module):
 
     def forward(self, img):
         logit = self.disc(img).squeeze()
+        # print(logit.shape)
         return logit
 
 

@@ -174,8 +174,8 @@ def main(_run):
         "image_loss": 0.0,
         "train_PSNR": 0.0,
     }
-    if not is_admm:
-        loss_dict["fft_grad_norm"] = 0.0
+    # if not is_admm:
+    #     loss_dict["fft_grad_norm"] = 0.0
 
     metric_dict = {"PSNR": 0.0, "g_loss": 0.0}
     avg_metrics = AvgLoss_with_dict(loss_dict=metric_dict, args=args)
@@ -293,7 +293,10 @@ def main(_run):
                     fake_logit=fake_logit,
                 )
                 g_loss.total_loss.backward()
-
+                # if is_local_rank_0 and i % (10 * args.log_interval) == 0:
+                #     for _ in range(args.multi):
+                #         print("psf diff:",torch.sum(torch.abs(FFT.module.wiener_crop[0] - FFT.module.wiener_crop[_])))
+                        # print(torch.sum(torch.abs(FFT.module.fft_layers[i].grad - FFT.module.fft_layers[0].grad)))
                 n, c, h, w = output_unpixel_shuffled.shape
                 output_unpixel_shuffled = output_unpixel_shuffled.reshape(
                     n // args.pixelshuffle_ratio ** 2,
@@ -309,16 +312,16 @@ def main(_run):
                 loss_dict["train_PSNR"] += PSNR(output, target)
 
                 # Gradient norm of FFT Layer
-                if not is_admm:
-                    if args.fft_epochs != args.num_epochs:
-                        if args.distdataparallel:
-                            loss_dict[
-                                "fft_grad_norm"
-                            ] += FFT.module.wiener_crop.grad.norm()
-                        else:
-                            loss_dict["fft_grad_norm"] += FFT.wiener_crop.grad.norm()
-                    else:
-                        loss_dict["fft_grad_norm"] += torch.tensor(0.0).to(rank)
+                # if not is_admm:
+                #     if args.fft_epochs != args.num_epochs:
+                #         if args.distdataparallel:
+                #             loss_dict[
+                #                 "fft_grad_norm"
+                #             ] += FFT.module.wiener_crop.grad.norm()
+                #         else:
+                #             loss_dict["fft_grad_norm"] += FFT.wiener_crop.grad.norm()
+                #     else:
+                #         loss_dict["fft_grad_norm"] += torch.tensor(0.0).to(rank)
 
                 g_optimizer.step()
 
@@ -624,7 +627,7 @@ def main(_run):
                             break
 
                     logging.info(
-                        f"Saving weights at END OF epoch {epoch + 1} global step {global_step}"
+                        f"Saving weights at END OF epoch {epoch + 1} global step {global_step}, the PSNR is {avg_metrics.loss_dict['PSNR']:.3f}"
                     )
 
                     # Save weights

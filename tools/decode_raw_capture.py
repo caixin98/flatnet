@@ -22,7 +22,9 @@ def decode_raw_capture(args, obj_path, save_path):
     raw = cv2.imread(obj_path, -1) / 4096.0
     raw_h, raw_w = raw.shape
     img = np.zeros((raw_h // 2, raw_w // 2, 4))
-
+    print("max", raw.max())
+    print("min", raw.min())
+    print("mean", raw.mean())
     img[:, :, 0] = raw[0::2, 0::2]  # r
     img[:, :, 1] = raw[0::2, 1::2]  # gr
     img[:, :, 2] = raw[1::2, 0::2]  # gb

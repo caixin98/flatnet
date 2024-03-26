@@ -13,7 +13,7 @@ def base_config():
     exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408"
     is_admm = "admm" in exp_name
     is_naive = "naive" in exp_name
-
+    multi = 1
     # ---------------------------------------------------------------------------- #
     # Directories
     # ---------------------------------------------------------------------------- #
@@ -113,7 +113,7 @@ def base_config():
     save_filename_latest_FFT = "FFT_latest.pth" if not is_admm else "ADMM_latest.pth"
     save_filename_latest_D = "D_latest.pth"
 
-    log_interval = 10  # the number of iterations (default: 10) to print at
+    log_interval = 100  # the number of iterations (default: 10) to print at
     save_ckpt_interval = log_interval * 10
     save_copy_every_epochs = 10
     # ---------------------------------------------------------------------------- #
@@ -122,7 +122,7 @@ def base_config():
     # See models/get_model.py for registry
     model = "unet-128-pixelshuffle-invert"
     pixelshuffle_ratio = 2
-
+    grad_lambda = 0.0
     # admm model args
     admm_iterations = 5
     normalise_admm_psf = False
@@ -152,7 +152,7 @@ def base_config():
     # Distribution Args
     # ---------------------------------------------------------------------------- #
     # choose cpu or cuda:0 device
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     distdataparallel = False
     val_train = False
 
@@ -163,6 +163,164 @@ def ours_meas_1280_1408():
     batch_size = 5
     num_threads = 5
     val_train = True
+
+def ours_meas_1280_1408_decoded_sim():
+    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4 
+    # fft_learning_rate = 4e-10 
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    # T_0 = 8
+
+
+def ours_meas_1280_1408_decoded_sim_multi():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 10
+
+def ours_meas_1280_1408_multi():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408"
+    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 10
+
+
+def ours_meas_1280_1408_decoded_sim_multi_ad():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.6
+    multi = 10
+
+def ours_meas_1280_1408_decoded_sim_multi_cunet():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_cunet"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 10
+    model = "cunet-128-pixelshuffle-invert"
+
+def ours_meas_1280_1408_decoded_sim_multi_mask():
+    exp_name = "fft-multi-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_mask = True
+    multi = 5
+
+def ours_meas_1280_1408_decoded_sim_multi9_mask():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_mask = True
+    multi = 10
+
+def ours_meas_1280_1408_decoded_sim_multi9_mask_cunet():
+    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask_cunet"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_mask = True
+    multi = 10
+    model = "cunet-128-pixelshuffle-invert"
+
+    
+def ours_meas_1280_1408_decoded_sim_mulnew9_mask():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_mask = True
+    multi = 10
+
+
+def ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad():
+    exp_name = "fft-multi-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad_no_add_grad"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 8
+    num_threads = 4
+    grad_lambda = 0.0
+    # val_train = True
+    lambda_adversarial = 0.6
+    multi = 5
+    learning_rate = 3e-4 
+    fft_learning_rate = 4e-10 
+
+def ours_meas_1280_1408_decoded_sim_ad():
+    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    learning_rate = 3e-4 
+    fft_learning_rate = 4e-10 
+    batch_size = 4
+    num_threads = 4
+    # lr_scheduler = "step"
+    T_0 = 5
+    pixelshuffle_ratio = 1
+    # val_train = True
+    lambda_adversarial = 0.6
+
+def ours_meas_1280_1408_decoded_sim_val_train():
+    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_val_train"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 10
+    num_threads = 5
+    val_train = True
+    lambda_adversarial = 0.0
 
 def ours_meas_1280_1408_val():
     exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-val"
@@ -638,6 +796,21 @@ named_config_ll = [
     ours_meas_1280_1408_unet_32,
     naive_meas_1280_1408_unet_32,
     le_admm_meas_1280_1408_unet_32,
+    #decoded_sim
+    ours_meas_1280_1408_decoded_sim,
+    ours_meas_1280_1408_decoded_sim_val_train,
+    ours_meas_1280_1408_decoded_sim_ad,
+    #multi + decoded_sim
+    ours_meas_1280_1408_decoded_sim_multi,
+    ours_meas_1280_1408_decoded_sim_multi_ad,
+    ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad,
+    ours_meas_1280_1408_decoded_sim_multi_mask,
+    ours_meas_1280_1408_decoded_sim_multi9_mask,
+    ours_meas_1280_1408_decoded_sim_mulnew9_mask,
+    ours_meas_1280_1408_decoded_sim_multi9_mask_cunet,
+    ours_meas_1280_1408_decoded_sim_multi_cunet,
+    #no decoded_sim
+    ours_meas_1280_1408_multi
 ]
 
 
@@ -669,7 +842,7 @@ fft_args = {
     # already set. Currently we are using full measurement. 
     "image_height": 384,
     "image_width": 384,
-    "fft_gamma": 20000,  # Gamma for Weiner init
+    "fft_gamma": 2e4,  # Gamma for Weiner init
     "use_mask": False,  # Use mask for cropped meas only
     "mask_path": Path("data/phase_psf/box_gaussian_1280_1408.npy"),
     # use Path("box_gaussian_1280_1408.npy") for controlled lighting
@@ -678,6 +851,11 @@ fft_args = {
 } 
 
 fft_args = SimpleNamespace(**fft_args)
+
+
+
+
+
 
 if __name__ == "__main__":
     str_named_config_ll = [str(named_config) for named_config in named_config_ll]

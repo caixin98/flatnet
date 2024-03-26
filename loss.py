@@ -40,6 +40,32 @@ def ones_like(x: "Tensor") -> "Tensor":
     ones = label_like(1, x)
     return ones
 
+def split_tensor_into_grid(tensor, grid):
+    """
+    分割一个形状为(B, C, H, W)的PyTorch 张量到一个大小为(grid x grid)的网格中。
+    每个网格都是一个较小的张量，所有这些张量放在一个列表中返回。
+    """
+    B, C, H, W = tensor.shape
+    grid_size = int(grid ** 0.5) # grid是完全平方数，取平方根得到每边的切分数量
+    height_per_grid = H // grid_size
+    width_per_grid = W // grid_size
+    
+    # 初始化结果列表
+    images = []
+    
+    for i in range(grid_size):
+        for j in range(grid_size):
+            # 计算每个小格的起始和结束索引
+            start_i = i * height_per_grid
+            end_i = start_i + height_per_grid
+            start_j = j * width_per_grid
+            end_j = start_j + width_per_grid
+            
+            # 从原张量中切割小张量
+            grid_tensor = tensor[:, :, start_i:end_i, start_j:end_j]
+            images.append(grid_tensor)
+    
+    return images
 
 class GLoss(nn.modules.Module):
     def __init__(self, args):
@@ -49,6 +75,8 @@ class GLoss(nn.modules.Module):
         if self.args.lambda_perception or self.args.lambda_contextual:
             self.LossNetwork = Vgg16FeatureExtractor()
             self.LossNetwork.eval()
+
+        self.is_multi = self.args.multi > 1
 
     def _perception_metric(self, X, Y):
         feat_X = self.LossNetwork(X)
@@ -98,13 +126,36 @@ class GLoss(nn.modules.Module):
                 F.binary_cross_entropy_with_logits(fake_logit, ones_like(fake_logit))
                 * self.args.lambda_adversarial
             )
-
+       
+     
         self.total_loss += (
             self.adversarial_loss
             + self.image_loss
             + self.contextual_loss
             + self.perception_loss
         )
+        if self.is_multi:
+            self.fft_loss = []
+            self.fft_loss.append(self.image_loss.clone() + self.perception_loss.clone())
+            if self.args.multi > 1:
+                output_grid = split_tensor_into_grid(output, self.args.multi - 1)
+                target_grid = split_tensor_into_grid(target, self.args.multi - 1)
+                for i in range(0, self.args.multi - 1):
+                    if self.args.lambda_image:
+                        image_loss = (
+                            F.mse_loss(output_grid[i], target_grid[i]).mean() * self.args.lambda_image
+                        ).to(device)
+
+                    if self.args.lambda_perception:
+                        perception_loss = (
+                            self._perception_metric(output_grid[i], target_grid[i]).to(device)
+                            * self.args.lambda_perception
+                        ).to(device)
+                    fft_loss = image_loss 
+                    fft_loss += perception_loss
+                    self.fft_loss.append(fft_loss)
+                #split the original images 
+                
 
         return self.total_loss
 

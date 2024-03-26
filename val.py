@@ -66,7 +66,9 @@ def main(_run):
 
     # ADMM or not
     is_admm = "admm" in args.exp_name
+    is_multi = "multi" in args.exp_name
     interm_name = "fft" if not is_admm else "admm"
+
 
     # Get data
     data = get_dataloaders(args)
@@ -74,9 +76,9 @@ def main(_run):
     # Model
     G, FFT, _ = get_model.model(args)
 
-    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-multi"
-    model_gen_path = ckpt_dir / "Epoch_90_model_latest.pth"
-    model_fft_path = ckpt_dir / "Epoch_90_FFT_latest.pth"
+    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / args.exp_name.replace("_val_train", "")
+    model_gen_path = ckpt_dir / "model_latest.pth"
+    model_fft_path = ckpt_dir / "FFT_latest.pth"
 
     gen_ckpt = torch.load(model_gen_path, map_location=torch.device("cpu"))
     fft_ckpt = torch.load(model_fft_path, map_location=torch.device("cpu"))
@@ -153,10 +155,11 @@ def main(_run):
                 start.record()
 
             fft_output = FFT(source)
-
+            
             if is_admm:
                 # Upsample
                 fft_output = F.interpolate(fft_output, scale_factor=4, mode="nearest")
+          
 
             # Unpixelshuffle
             fft_unpixel_shuffled = unpixel_shuffle(fft_output, args.pixelshuffle_ratio)
@@ -182,16 +185,18 @@ def main(_run):
 
             for e in range(args.batch_size):
                 # Compute SSIM
-                if not is_admm:
-                    fft_output_vis = rggb_2_rgb(fft_output[e]).mul(0.5).add(0.5)
+                fft_output_vis = []
+                if not is_admm and is_multi:
+                    for i in range(args.multi):
+                        fft_output_vis.append(rggb_2_rgb(fft_output[e][4*i:4*i+4]).mul(0.5).add(0.5))
                 else:
-                    fft_output_vis = fft_output[e].mul(0.5).add(0.5)
-
-                fft_output_vis = (fft_output_vis - fft_output_vis.min()) / (
-                    fft_output_vis.max() - fft_output_vis.min()
-                )
-
-                fft_output_vis = fft_output_vis.permute(1, 2, 0).cpu().detach().numpy()
+                    fft_output_vis.append(fft_output[e].mul(0.5).add(0.5))
+                for i in range(len(fft_output_vis)):
+                    fft_output_vis[i] = (fft_output_vis[i] - fft_output_vis[i].min()) / (
+                        fft_output_vis[i].max() - fft_output_vis[i].min()
+                    )
+                    fft_output_vis[i] = fft_output_vis[i].permute(1, 2, 0).cpu().detach().numpy()
+          
 
                 output_numpy = (
                     output[e].mul(0.5).add(0.5).permute(1, 2, 0).cpu().detach().numpy()
@@ -214,10 +219,11 @@ def main(_run):
                 cv2.imwrite(
                     str(path_output), (output_numpy[:, :, ::-1] * 255.0).astype(np.int)
                 )
-                cv2.imwrite(
-                    str(path_fft), (fft_output_vis[:, :, ::-1] * 255.0).astype(np.int)
-                )
-
+                for i in range(len(fft_output_vis)):
+                    cv2.imwrite(
+                        str(path_fft).replace(".png", f"_{i}.png"), (fft_output_vis[i][:, :, ::-1] * 255.0).astype(np.int)
+                    )
+              
             metrics_dict["SSIM"] = metrics_dict["SSIM"] / args.batch_size
             avg_metrics += metrics_dict
 

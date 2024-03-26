@@ -8,7 +8,7 @@ import torch.nn as nn
 from config import initialise
 from utils.ops import roll_n
 from utils.tupperware import tupperware
-
+import cv2
 if TYPE_CHECKING:
     from utils.typing_alias import *
 
@@ -60,7 +60,7 @@ def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     # Compute the absolute square of H
     H_conj = torch.conj(H)
     Habsq = H * H_conj
-
+    # print("Habsq.real , Gamma", Habsq.real, Gamma)
     # Create Wiener filter
     W = torch.conj(H) / (Habsq.real + Gamma)
 
@@ -75,13 +75,15 @@ class FFTLayer(nn.Module):
     def __init__(self, args: "tupperware"):
         super().__init__()
         self.args = args
-
         # No grad if you're not training this layer
-        # requires_grad = not (args.fft_epochs == args.num_epochs)
+        requires_grad = not (args.fft_epochs == args.num_epochs)
         
-        requires_grad = args.fft_requires_grad
-
+        # requires_grad = args.fft_requires_grad
+        # if args.psf_mat.endswith(".npy"):
         psf = torch.tensor(np.load(args.psf_mat)).float()
+        # elif args.psf_mat.endswith(".png") or args.psf_mat.endswith(".jpg"):
+        #     psf = torch.tensor(cv2.imread(args.psf_mat, cv2.IMREAD_GRAYSCALE)).float()
+        
 
         psf_crop_top = args.psf_centre_x - args.psf_crop_size_x // 2
         psf_crop_bottom = args.psf_centre_x + args.psf_crop_size_x // 2
@@ -89,6 +91,8 @@ class FFTLayer(nn.Module):
         psf_crop_right = args.psf_centre_y + args.psf_crop_size_y // 2
 
         psf_crop = psf[psf_crop_top:psf_crop_bottom, psf_crop_left:psf_crop_right]
+
+        self.psf_height, self.psf_width = psf_crop.shape
 
         wiener_crop = get_wiener_matrix(
             psf_crop, Gamma=args.fft_gamma, centre_roll=False
@@ -132,14 +136,20 @@ class FFTLayer(nn.Module):
 
         # Convert to 0...1
         img = 0.5 * img + 0.5
-
+        #center crop img to 1280x1408
+        h, w = img.shape[2], img.shape[3]
+        
+        img = img[:, :, (h - self.psf_height)//2:(h + self.psf_height)//2, (w - self.psf_width)//2:(w + self.psf_width)//2]
+        # Pad to psf_height, psf_width
+        img = F.pad(
+            img, (pad_y // 2, pad_y // 2, pad_x // 2, pad_x // 2)
+        )
         # Use mask
         if self.args.use_mask:
             img = img * self.mask
 
         # Do FFT convolve
         img = fft_conv2d(img, self.fft_layer) * self.normalizer
-
         # Centre Crop
         img = img[
             :,

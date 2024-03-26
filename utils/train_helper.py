@@ -83,9 +83,18 @@ def get_optimisers(
     g_optimizer = AdamW(
         G_params, lr=args.learning_rate, betas=(args.beta_1, args.beta_2)
     )
-    fft_optimizer = AdamW(
-        FFT.parameters(), lr=args.fft_learning_rate, betas=(args.beta_1, args.beta_2)
-    )
+    # is_multi = "multi" in args.exp_name.lower()
+    is_multi = False
+    if is_multi:
+        fft_optimizer = []
+        for i in range(0, args.multi):
+            fft_optimizer += [AdamW(
+                [FFT.wiener_crop[i]], lr=args.fft_learning_rate, betas=(args.beta_1, args.beta_2)
+            )]
+    else:
+        fft_optimizer = AdamW(
+            FFT.parameters(), lr=args.fft_learning_rate, betas=(args.beta_1, args.beta_2)
+        )
     d_optimizer = AdamW(
         D.parameters(), lr=args.learning_rate, betas=(args.beta_1, args.beta_2)
     )
@@ -94,10 +103,16 @@ def get_optimisers(
         g_lr_scheduler = CosineAnnealingWarmRestarts(
             optimizer=g_optimizer, T_0=args.T_0, T_mult=args.T_mult, eta_min=2e-7
         )
-
-        fft_lr_scheduler = CosineAnnealingWarmRestarts(
-            optimizer=fft_optimizer, T_0=args.T_0, T_mult=args.T_mult, eta_min=2e-15
-        )
+        if is_multi:
+            fft_lr_scheduler = []
+            for i in range(args.multi):
+                fft_lr_scheduler.append(CosineAnnealingWarmRestarts(
+                    optimizer=fft_optimizer[i], T_0=args.T_0, T_mult=args.T_mult, eta_min=2e-15
+                ))
+        else:
+            fft_lr_scheduler = CosineAnnealingWarmRestarts(
+                optimizer=fft_optimizer, T_0=args.T_0, T_mult=args.T_mult, eta_min=2e-15
+            )
 
         d_lr_scheduler = CosineAnnealingWarmRestarts(
             optimizer=d_optimizer, T_0=args.T_0, T_mult=args.T_mult, eta_min=2e-7
@@ -106,10 +121,16 @@ def get_optimisers(
         g_lr_scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer=g_optimizer, step_size=args.step_size, gamma=0.1
         )
-
-        fft_lr_scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer=fft_optimizer, step_size=args.step_size, gamma=0.1
-        )
+        if is_multi:
+            fft_lr_scheduler = []
+            for i in range(args.multi):
+                fft_lr_scheduler.append(torch.optim.lr_scheduler.StepLR(
+                    optimizer=fft_optimizer[i], step_size=args.step_size, gamma=0.1
+                ))
+        else:
+            fft_lr_scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer=fft_optimizer, step_size=args.step_size, gamma=0.1
+            )
 
         d_lr_scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer=d_optimizer, step_size=args.step_size, gamma=0.1
@@ -256,12 +277,14 @@ def save_weights(
                 torch.save(G_state, path_G)
 
         if FFT:
+            # for _ in range(args.multi):
+            #     print("------psf diff:",torch.sum(torch.abs(FFT.module.wiener_crop[0] - FFT.module.wiener_crop[_])))
             # FFT
             FFT_state = {
                 "global_step": global_step,
                 "epoch": epoch + 1,
                 "state_dict": FFT.state_dict(),
-                "optimizer": fft_optimizer.state_dict(),
+                # "optimizer": fft_optimizer.state_dict(),
                 "loss": loss,
             }
             save_filename_FFT = (
