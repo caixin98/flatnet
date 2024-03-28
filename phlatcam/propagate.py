@@ -32,7 +32,7 @@ def prop2D(Uin, Lxy, lambda_, z, method='as'):
     Fx, Fy = np.meshgrid(fx, fy)
 
     bp = np.sqrt(Fx**2 + Fy**2) < (1/lambda_)  # Medium's Bandpass
-
+    # print(bp)
     # Angular spectrum
     if method.lower() == 'as':
         H = bp * np.exp(1j * 2 * np.pi * (z / lambda_) * bp * np.sqrt(1 - lambda_**2 * (Fx**2 + Fy**2)))
