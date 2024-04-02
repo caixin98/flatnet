@@ -134,26 +134,26 @@ class GLoss(nn.modules.Module):
             + self.contextual_loss
             + self.perception_loss
         )
-        if self.is_multi:
-            self.fft_loss = []
-            self.fft_loss.append(self.image_loss.clone() + self.perception_loss.clone())
-            if self.args.multi > 1:
-                output_grid = split_tensor_into_grid(output, self.args.multi - 1)
-                target_grid = split_tensor_into_grid(target, self.args.multi - 1)
-                for i in range(0, self.args.multi - 1):
-                    if self.args.lambda_image:
-                        image_loss = (
-                            F.mse_loss(output_grid[i], target_grid[i]).mean() * self.args.lambda_image
-                        ).to(device)
+        # if self.is_multi:
+        #     self.fft_loss = []
+        #     self.fft_loss.append(self.image_loss.clone() + self.perception_loss.clone())
+        #     if self.args.multi > 1:
+        #         output_grid = split_tensor_into_grid(output, self.args.multi - 1)
+        #         target_grid = split_tensor_into_grid(target, self.args.multi - 1)
+        #         for i in range(0, self.args.multi - 1):
+        #             if self.args.lambda_image:
+        #                 image_loss = (
+        #                     F.mse_loss(output_grid[i], target_grid[i]).mean() * self.args.lambda_image
+        #                 ).to(device)
 
-                    if self.args.lambda_perception:
-                        perception_loss = (
-                            self._perception_metric(output_grid[i], target_grid[i]).to(device)
-                            * self.args.lambda_perception
-                        ).to(device)
-                    fft_loss = image_loss 
-                    fft_loss += perception_loss
-                    self.fft_loss.append(fft_loss)
+        #             if self.args.lambda_perception:
+        #                 perception_loss = (
+        #                     self._perception_metric(output_grid[i], target_grid[i]).to(device)
+        #                     * self.args.lambda_perception
+        #                 ).to(device)
+        #             fft_loss = image_loss 
+        #             fft_loss += perception_loss
+        #             self.fft_loss.append(fft_loss)
                 #split the original images 
                 
 

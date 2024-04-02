@@ -16,6 +16,7 @@ ex = Experiment("FFT-Layer")
 ex = initialise(ex)
 
 
+ 
 def fft_conv2d(input, kernel):
     """
     Computes the convolution in the frequency domain given
@@ -70,55 +71,41 @@ def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     # Extract the real part
     return wiener_mat.real[0]
 
-def generate_vertices(K, H, W):
-    step_h = H // (K ** 0.5 - 1) 
-    step_w = W // (K ** 0.5 - 1)
-    vertices = [(h, w) for h in torch.arange(0, H + 1, step=step_h) for w in torch.arange(0, W + 1, step=step_w)]
-    return torch.tensor(vertices[:K])  # 返回前K个均匀分布的点
-
-class SpatialVaryWeight(nn.Module):
-    #add weight for each spatial position and each deconved image
-    # input: deconved image, shape: (B, self.multi, C, H, W), C = 4 in our case
-    # output: weight, shape: (B, C, H, W)
-    def __init__(self, args: "tupperware"):
-        super(SpatialVaryWeight, self).__init__()
-        self.args = args
-        self.multi = args.multi
-        # Target image (eg: 384) dims
-        img_h = self.args.image_height
-        img_w = self.args.image_width
-        weight_update = args.weight_update
-        self.weight = nn.Parameter(torch.rand(self.multi, img_h, img_w), requires_grad=weight_update)
-        self.init_weight()
-    def forward(self, img):
-        weight = F.softmax(self.weight, dim=0)
-        weight = weight.unsqueeze(0).unsqueeze(2)
-        weighted_img = img * weight
-        result = weighted_img.sum(dim=1)
-        return result
+def shift_psf(psf, shift):
+    """
+    Shift the PSF by a given amount in the spatial domain using PyTorch.
+    :param psf: The PSF to shift, a 2D torch tensor.
+    :param shift: The amount to shift the PSF by, (x,y)
+    :return: The shifted PSF as a 2D torch tensor.
+    """
+    # Change shape of psf to 1 x 1 x H x W for grid_sample (N x C x H x W)
+    psf = psf.unsqueeze(0).unsqueeze(0)
     
-    # initialize the weight with spatial varying deconvlution prior
-    def init_weight(self):
-        H = self.args.image_height
-        W = self.args.image_width
-        # generate the vertices
-        vertices = generate_vertices(self.multi, H, W).float()
-        # calculate the distance between each pixel and each vertex
-        y_grid, x_grid = torch.meshgrid(torch.arange(H), torch.arange(W), indexing="ij")
-        grid = torch.stack((y_grid, x_grid), dim=-1).float()  # Shape: (H, W, 2)
-        vertices_expanded = vertices.unsqueeze(1).unsqueeze(1)
-        grid_expanded = grid.unsqueeze(0)
-        dists = torch.sqrt(((grid_expanded - vertices_expanded) ** 2).sum(dim=-1)) / (H + W)
-        # print("dists.shape", dists)
-        weights = 1 / (dists + 1e-8)
-        normalized_weights = weights / weights.sum(dim=0, keepdim=True)
-        self.weight.data = normalized_weights
-        # visualize the weight
-        # save_path = "weight.png"
-        # cv2.imwrite("weight.png", (normalized_weights[0] * 255).numpy().astype(np.uint8))
+    # Normalize shift to be in [-1, 1], as grid_sample expects
+    # Note: Assuming psf is square for simplicity, adjust if not
+    h, w = psf.size()[2:]
+    shift_normalized = (2 * torch.tensor(shift, dtype=torch.float32) / torch.tensor([w, h]) )
+    
+    # Create grid for affine transformation, considering grid_sample's grid format
+    theta = torch.tensor([[1, 0, shift_normalized[0]], 
+                          [0, 1, shift_normalized[1]]], dtype=torch.float32)
+    theta = theta.unsqueeze(0)  # Add batch dimension
+    grid = F.affine_grid(theta, size=psf.size(), align_corners=False)
+    
+    # Apply grid_sample to psf
+    psf_shifted = F.grid_sample(psf, grid, align_corners=False)
+    
+    # Remove added dimensions to return to original size
+    return psf_shifted.squeeze(0).squeeze(0)
 
+# Example of using the function
+# shift_x, shift_y = 10, 5  # Shift by 10 in x, 5 in y direction
+# your_psf_tensor = torch.rand(100, 100)  # Example PSF tensor
+# shifted_psf = shift_psf(your_psf_tensor, (shift_x, shift_y))
 
-class MultiFFTLayer_new(nn.Module):
+    
+        
+class MultiFFTLayer_shift(nn.Module):
     def __init__(self, args: "tupperware"):
         super().__init__()
         self.args = args
@@ -140,18 +127,29 @@ class MultiFFTLayer_new(nn.Module):
         psf_crop = psf[psf_crop_top:psf_crop_bottom, psf_crop_left:psf_crop_right]
 
         self.psf_height, self.psf_width = psf_crop.shape
-
-        wiener_crop = get_wiener_matrix(
-            psf_crop, Gamma=args.fft_gamma, centre_roll=False
-        )
-        wiener_crop_tensor = wiener_crop.repeat(self.multi, 1, 1)
+        psf_crop_shift = []
+        psf_crop_shift.append(psf_crop)
+        partition = np.sqrt(self.multi - 1)
+        for i in range(1, self.multi):
+            row = (i - 1) // partition
+            col = (i - 1) % partition
+            j = row - partition // 2
+            k = col - partition // 2
+            psf_crop_shift.append(shift_psf(psf_crop, (j * 10, k * 10)))
+        wiener_crop_list = []
+        for i in range(self.multi):
+            wiener_crop = get_wiener_matrix(
+                psf_crop_shift[i], Gamma=args.fft_gamma, centre_roll=False
+            )
+            wiener_crop_list.append(wiener_crop)
+      
+        wiener_crop_tensor = torch.stack(wiener_crop_list)
 
         self.wiener_crop =nn.Parameter(wiener_crop_tensor, requires_grad=requires_grad)
         # self.wiener_crop = nn.ParameterList(self.wiener_crop)
         self.normalizer = nn.Parameter(
-            torch.tensor([1 / 0.0008]).reshape(1, 1, 1).repeat(self.multi, 1, 1), requires_grad=requires_grad
+            torch.tensor([1 / 0.0008]).reshape(1, 1, 1, 1), requires_grad=requires_grad
         )
-
 
         # if self.args.use_mask:
         #     mask = torch.tensor(np.load(args.mask_path)).float()
@@ -201,7 +199,7 @@ class MultiFFTLayer_new(nn.Module):
         imgs = []
         # Do FFT convolve
         for i in range(self.multi):
-            img_ = fft_conv2d(img, self.fft_layers[i]) * self.normalizer[i]
+            img_ = fft_conv2d(img, self.fft_layers[i]) * self.normalizer
             # Centre Crop
             img_ = img_[
                 :,
@@ -213,27 +211,20 @@ class MultiFFTLayer_new(nn.Module):
         # Use mask
         if self.args.use_mask:
             mask = self.create_mask(imgs[0])
-            img = imgs[0] * mask[0, :, :]
-            for i in range(1, self.multi):
-                img += imgs[i] * mask[i, :, :]
-        elif self.args.use_spatial_weight:
-            img_0 = imgs[0]
-            spatial_weight = SpatialVaryWeight(self.args).to(img.device)
-            img_1 = spatial_weight(torch.stack(imgs[1:], dim=1))
-            img = torch.cat([img_0, img_1], dim=1)
-        else:
-            img = torch.cat(imgs, dim=1)
-            print("img.shape", img.shape)
+            for i in range(self.multi):
+                imgs[i] = imgs[i] * mask[i, :, :]
         # concat the images
+        imgs = torch.cat(imgs, dim=1)
+
         # print("imgs.shape", imgs.shape)
-        return img
+        return imgs
     #create mask on image, for example, if multi=5, then we need to create 5 masks on the image
     #the first mask is full image, the second mask is left-top image,
     #the third mask is right-top image, the fourth mask is left-bottom image, the fifth mask is right-bottom image
     def create_mask(self, img):
         mask = torch.zeros(self.multi, img.shape[2], img.shape[3]).to(img.device)
         h, w = img.shape[2], img.shape[3]
-        # mask[0, :, :] = 1
+        mask[0, :, :] = 1
         # calculate the height and width of the mask
         partition = np.sqrt(self.multi - 1)
         if partition != 0:
@@ -244,15 +235,8 @@ class MultiFFTLayer_new(nn.Module):
             # calculate the position of the mask
             row = (i - 1) // partition
             col = (i - 1) % partition
-            start_row = int(row * height)
-            end_row = int((row + 1) * height)
-            if row == partition - 1:
-                end_row = h
-            start_col = int(col * width)
-            end_col = int((col + 1) * width)
-            if col == partition - 1:
-                end_col = w
-            mask[i, start_row:end_row, start_col:end_col] = 1
+            
+            mask[i, int(row * height):int((row + 1) * height), int(col * width):int((col + 1) * width)] = 1
         return mask 
 
 @ex.automain

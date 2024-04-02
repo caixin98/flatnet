@@ -50,7 +50,7 @@ def main(_run):
     args = tupperware(_run.config)
     G, FFT, _ = get_model.model(args)
     G, FFT_init, _ = get_model.model(args)
-    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / args.exp_name
+    ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / args.exp_name
     model_gen_path = ckpt_dir / "model_latest.pth"
     model_fft_path = ckpt_dir / "FFT_latest.pth"
     print("Loading model from:", model_gen_path)

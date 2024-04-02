@@ -4,6 +4,7 @@ Get model
 from models.fftlayer import FFTLayer
 from models.multi_fftlayer import MultiFFTLayer
 from models.multi_fftlayer_new import MultiFFTLayer_new
+from models.multi_fftlayer_shift import MultiFFTLayer_shift
 
 from models.admm.admm_first_block import ADMM_Net as ADMM
 
@@ -21,14 +22,18 @@ def model(args):
     is_admm = "admm" in args.exp_name
     is_multi = "multi" in args.exp_name
     is_mulnew = "mulnew" in args.exp_name
+    is_multi_shift = "shift" in args.exp_name and is_multi
     if is_multi:
         in_c = 4 * args.multi
         Inversion = MultiFFTLayer
+    elif is_multi_shift:
+        in_c = 4 * args.multi
+        Inversion = MultiFFTLayer_shift
     elif is_admm:
         in_c = 3
         Inversion = ADMM
     elif is_mulnew:
-        in_c = 4
+        in_c = 4 * 2
         Inversion = MultiFFTLayer_new
     else:
         in_c = 4

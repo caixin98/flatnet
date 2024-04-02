@@ -76,7 +76,7 @@ def main(_run):
     # Model
     G, FFT, _ = get_model.model(args)
 
-    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / args.exp_name.replace("_val_train", "")
+    ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / args.exp_name.replace("_val_train", "")
     model_gen_path = ckpt_dir / "model_latest.pth"
     model_fft_path = ckpt_dir / "FFT_latest.pth"
 
@@ -299,7 +299,6 @@ def main(_run):
                     path.mkdir(exist_ok=True, parents=True)
                     path_output = path / ("output_" + name)
                     path_fft = path / (f"{interm_name}_" + name)
-
                     cv2.imwrite(
                         str(path_output),
                         (output_numpy[:, :, ::-1] * 255.0).astype(np.int),

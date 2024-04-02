@@ -4,53 +4,73 @@ from propagate import prop2D
 import numpy as np
 import torch
 import torch.nn.functional as F
-psf_path = '../data/phase_psf/psf.npy'
-# Define the input PSF
-psf = np.load(psf_path)
-sensor = dict(size = np.array([4.8e-6 * 1518, 4.8e-6 * 2012]))
 
-def crop_and_padding(img, meas_crop_size_x=1280, meas_crop_size_y=1408, meas_centre_x=808, meas_centre_y=965, psf_height=1518, psf_width=2012, pad_meas_mode="replicate"):
-    # crop
-    img = torch.tensor(img)
-    if meas_crop_size_x and meas_crop_size_y:
-        crop_x = meas_centre_x - meas_crop_size_x // 2
-        crop_y = meas_centre_y - meas_crop_size_y // 2
+import numpy as np
+from PIL import Image
+from scipy.ndimage import gaussian_gradient_magnitude
+from skimage.filters import sobel
+import noise  # Uses the noise library for Perlin noise, install with pip install noise
 
-        # Replicate padding
-        img = img[
-            crop_x: crop_x + meas_crop_size_x,
-            crop_y: crop_y + meas_crop_size_y,
-            ]
-
-        pad_x = psf_height - meas_crop_size_x
-        pad_y = psf_width - meas_crop_size_y
-        
-        img = F.pad(
-            img.permute(2, 0, 1).unsqueeze(0),
-            (pad_y // 2, pad_y // 2, pad_x // 2, pad_x // 2),
-            mode=pad_meas_mode,
-        )
-
-        img = img.squeeze(0).permute(1, 2, 0)
-        # resize for half
-    img = img.numpy()
-    # img = cv2.resize(img.numpy(), (meas_crop_size_y // 2, meas_crop_size_x // 2))
+def perlin2D(size, res):
+    """
+    Generate a 2D numpy array of perlin noise.
+    Args:
+        size: tuple of dimensions (width, height)
+        res: tuple of resolutions for x and y, respectively
+    Returns:
+        2D numpy array of perlin noise.
+    """
+    def pnoise(x, y):
+        #fix the random seed
+        np.random.seed(0)
+        # Adjust res for noise generation
+        return noise.pnoise2(x / res[0], y / res[1], repeatx=size[0], repeaty=size[1])
     
-    # img = img[..., None]
-    print("img shape: ", img.shape)
-    return img
+    return np.array([[pnoise(x, y) for x in range(size[0])] for y in range(size[1])])
 
-# add last dimension
-psf = psf[..., None]
-# print(psf.shape)
-psf = crop_and_padding(psf)
-psf = psf[..., 0]
+def resize_image(image_array, new_width, method=Image.NEAREST):
+    """
+    Resize the image to a new width while maintaining aspect ratio.
+    Args:
+        image_array: Input image array to resize.
+        new_width: New width to resize to.
+        method: Resampling method used by PIL. Default is Image.NEAREST.
+    Returns:
+        Resized image as a numpy array.
+    """
+    img = Image.fromarray(image_array)
+    aspect_ratio = img.height / img.width
+    new_height = int(aspect_ratio * new_width)
+    img = img.resize((new_width, new_height), method)
+    return np.array(img)
+
+# Parameters
+pName = 'perlin12_20_example'
+minFeature = 12  # um Width of contour
+pxSz = 2  # Placeholder for pixel size, adjust as needed
+
+# Perlin noise generation
+pattern_size = (300, 300)  # pixels
+In = perlin2D(pattern_size, (20, 20))
+
+# Normalize
+In = In - np.min(In)
+In = In / np.max(In)
+
+# Edge detection (using Sobel operator as an example, similar to Canny in performance for this purpose)
+M = sobel(In)
+M = (M > 0).astype(float)  # Convert edges to binary
+
+# Resize to get desired contour width (Assuming `pxSz` is provided accurately)
+new_width = int((minFeature / pxSz) * M.shape[1] / M.shape[0])  # New width based on minFeature and pixel size
+M_resized = resize_image(M, new_width)
+
+psf = M_resized
 # define the wavelength
 lambd = 0.532
 method = 'as'
 numIters = 20
-zMS = 1900
-pxSz = 2
+zMS = 1869
 # visualize the PSF
 import matplotlib.pyplot as plt
 plt.imsave('results/psf.png', psf, cmap='gray')

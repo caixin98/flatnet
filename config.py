@@ -14,6 +14,8 @@ def base_config():
     is_admm = "admm" in exp_name
     is_naive = "naive" in exp_name
     multi = 1
+    use_spatial_weight = False
+    weight_update = True
     # ---------------------------------------------------------------------------- #
     # Directories
     # ---------------------------------------------------------------------------- #
@@ -21,9 +23,9 @@ def base_config():
     test_glob_pattern = "test_set_Jan/cap*.png"
 
     image_dir = Path("data")
-    output_dir = Path("output_phase_mask_Feb_2020_size_384") / exp_name
-    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / exp_name
-    run_dir = Path("runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
+    output_dir = Path("flatnet_oss/output_phase_mask_Feb_2020_size_384") / exp_name
+    ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / exp_name
+    run_dir = Path("flatnet_oss/runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
     test_image_dir = image_dir / "PhaseCapture_Webcam" / "saves"
 
     # ---------------------------------------------------------------------------- #
@@ -157,12 +159,13 @@ def base_config():
     val_train = False
 
 def ours_meas_1280_1408():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-train"
+    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408"
     # learning_rate = 3e-4
     # fft_learning_rate = 4e-10
     batch_size = 5
     num_threads = 5
-    val_train = True
+    lambda_adversarial = 0.0
+    # val_train = True
 
 def ours_meas_1280_1408_decoded_sim():
     exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
@@ -189,6 +192,18 @@ def ours_meas_1280_1408_decoded_sim_multi():
     lambda_adversarial = 0.0
     multi = 10
 
+def ours_meas_1280_1408_decoded_sim_multi_shift():
+    exp_name = "fft-multi-shift-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 10
+
 def ours_meas_1280_1408_multi():
     exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408"
     # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
@@ -200,6 +215,21 @@ def ours_meas_1280_1408_multi():
     # val_train = True
     lambda_adversarial = 0.0
     multi = 10
+
+
+def ours_meas_1280_1408_mulnew():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408"
+    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 9
+    use_spatial_weight = True
+
 
 
 def ours_meas_1280_1408_decoded_sim_multi_ad():
@@ -245,7 +275,7 @@ def ours_meas_1280_1408_decoded_sim_multi9_mask():
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
-    fft_learning_rate = 4e-10
+    # fft_learning_rate = 4e-10
     batch_size = 5
     num_threads = 5
     # val_train = True
@@ -269,7 +299,7 @@ def ours_meas_1280_1408_decoded_sim_multi9_mask_cunet():
 
     
 def ours_meas_1280_1408_decoded_sim_mulnew9_mask():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask-new"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
@@ -281,6 +311,47 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_mask():
     use_mask = True
     multi = 10
 
+def ours_meas_1280_1408_decoded_sim_mulnew9():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 5e-4
+    # fft_learning_rate = 5e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_spatial_weight = True
+    multi = 10
+
+def ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_no_pixelshuffle"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 5e-4
+    # fft_learning_rate = 5e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_spatial_weight = True
+    multi = 10
+    pixelshuffle_ratio = 1
+    
+
+def ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_no_weight_update"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4
+    fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_spatial_weight = True
+    multi = 10
+    weight_update = False
 
 def ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad():
     exp_name = "fft-multi-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad_no_add_grad"
@@ -806,11 +877,18 @@ named_config_ll = [
     ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad,
     ours_meas_1280_1408_decoded_sim_multi_mask,
     ours_meas_1280_1408_decoded_sim_multi9_mask,
-    ours_meas_1280_1408_decoded_sim_mulnew9_mask,
+    
     ours_meas_1280_1408_decoded_sim_multi9_mask_cunet,
     ours_meas_1280_1408_decoded_sim_multi_cunet,
     #no decoded_sim
-    ours_meas_1280_1408_multi
+    ours_meas_1280_1408_multi,
+    ours_meas_1280_1408_decoded_sim_multi_shift,
+    #mulnew
+    ours_meas_1280_1408_decoded_sim_mulnew9_mask,
+    ours_meas_1280_1408_mulnew,
+    ours_meas_1280_1408_decoded_sim_mulnew9,
+    ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update,
+    ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle
 ]
 
 
@@ -825,8 +903,8 @@ fft_args = {
     "psf_mat": Path("data/phase_psf/psf.npy"),
     "psf_height": 1518,
     "psf_width": 2012,
-    "psf_centre_x": 808,
-    "psf_centre_y": 965,
+    "psf_centre_x": 808 + 10,
+    "psf_centre_y": 965 + 10,
     "psf_crop_size_x": 1280,
     "psf_crop_size_y": 1408,
     "meas_height": 1518,
@@ -848,6 +926,7 @@ fft_args = {
     # use Path("box_gaussian_1280_1408.npy") for controlled lighting
     # use Path("box_gaussian_1280_1408_big_mask.npy") for uncontrolled lighting
     "fft_requires_grad": False,
+    "fft_epochs": 0
 } 
 
 fft_args = SimpleNamespace(**fft_args)

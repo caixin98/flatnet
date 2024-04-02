@@ -57,6 +57,11 @@ if not is_local_rank_0:
 # To prevent "RuntimeError: received 0 items of ancdata"
 torch.multiprocessing.set_sharing_strategy("file_system")
 torch.autograd.set_detect_anomaly(True)
+#set random seed for all experiments
+seed = 3407
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+np.random.seed(seed)
 
 
 @ex.automain

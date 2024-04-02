@@ -71,19 +71,22 @@ def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     return wiener_mat.real[0]
 
 
-class FFTLayer(nn.Module):
+
+
+
+class MultiFFTLayer_new(nn.Module):
     def __init__(self, args: "tupperware"):
         super().__init__()
         self.args = args
         # No grad if you're not training this layer
-        # requires_grad = not (args.fft_epochs == args.num_epochs)
-        requires_grad = True
+        requires_grad = not (args.fft_epochs == args.num_epochs)
+        
         # requires_grad = args.fft_requires_grad
         # if args.psf_mat.endswith(".npy"):
         psf = torch.tensor(np.load(args.psf_mat)).float()
         # elif args.psf_mat.endswith(".png") or args.psf_mat.endswith(".jpg"):
         #     psf = torch.tensor(cv2.imread(args.psf_mat, cv2.IMREAD_GRAYSCALE)).float()
-        
+        self.multi = args.multi
 
         psf_crop_top = args.psf_centre_x - args.psf_crop_size_x // 2
         psf_crop_bottom = args.psf_centre_x + args.psf_crop_size_x // 2
@@ -97,38 +100,43 @@ class FFTLayer(nn.Module):
         wiener_crop = get_wiener_matrix(
             psf_crop, Gamma=args.fft_gamma, centre_roll=False
         )
+        wiener_crop_tensor = wiener_crop.repeat(self.multi, 1, 1)
 
-        self.wiener_crop = nn.Parameter(wiener_crop, requires_grad=requires_grad)
-
+        self.wiener_crop =nn.Parameter(wiener_crop_tensor, requires_grad=requires_grad)
+        # self.wiener_crop = nn.ParameterList(self.wiener_crop)
         self.normalizer = nn.Parameter(
-            torch.tensor([1 / 0.0008]).reshape(1, 1, 1, 1), requires_grad=requires_grad
+            torch.tensor([1 / 0.0008]).reshape(1, 1, 1).repeat(self.multi, 1, 1), requires_grad=requires_grad
         )
 
-        if self.args.use_mask:
-            mask = torch.tensor(np.load(args.mask_path)).float()
-            self.mask = nn.Parameter(mask, requires_grad=False)
+
+        # if self.args.use_mask:
+        #     mask = torch.tensor(np.load(args.mask_path)).float()
+        #     self.mask = nn.Parameter(mask, requires_grad=False)
 
     def forward(self, img):
+
         pad_x = self.args.psf_height - self.args.psf_crop_size_x
         pad_y = self.args.psf_width - self.args.psf_crop_size_y
-
+        self.fft_layers = []
         # Pad to psf_height, psf_width
-        self.fft_layer = 1 * self.wiener_crop
-        self.fft_layer = F.pad(
+        for i in range(self.multi):
+            self.fft_layer = 1 * self.wiener_crop[i]
+            self.fft_layer = F.pad(
             self.fft_layer, (pad_y // 2, pad_y // 2, pad_x // 2, pad_x // 2)
-        )
-
-        # Centre roll
-        for dim in range(2):
-            self.fft_layer = roll_n(
-                self.fft_layer, axis=dim, n=self.fft_layer.size(dim) // 2
             )
 
-        # Make 1 x 1 x H x W
-        self.fft_layer = self.fft_layer.unsqueeze(0).unsqueeze(0)
-        # print("self.fft_layer.shape", self.fft_layer.shape)
-        # FFT Layer dims
-        _, _, fft_h, fft_w = self.fft_layer.shape
+            # Centre roll
+            for dim in range(2):
+                self.fft_layer = roll_n(
+                    self.fft_layer, axis=dim, n=self.fft_layer.size(dim) // 2
+                )
+
+            # Make 1 x 1 x H x W
+            self.fft_layer = self.fft_layer.unsqueeze(0).unsqueeze(0)
+            # print("self.fft_layer.shape", self.fft_layer.shape)
+            # FFT Layer dims
+            _, _, fft_h, fft_w = self.fft_layer.shape
+            self.fft_layers.append(self.fft_layer)
 
         # Target image (eg: 384) dims
         img_h = self.args.image_height
@@ -144,27 +152,62 @@ class FFTLayer(nn.Module):
         img = F.pad(
             img, (pad_y // 2, pad_y // 2, pad_x // 2, pad_x // 2)
         )
+    
+
+        imgs = []
+        # Do FFT convolve
+        for i in range(self.multi):
+            img_ = fft_conv2d(img, self.fft_layers[i]) * self.normalizer[i]
+            # Centre Crop
+            img_ = img_[
+                :,
+                :,
+                fft_h // 2 - img_h // 2 : fft_h // 2 + img_h // 2,
+                fft_w // 2 - img_w // 2 : fft_w // 2 + img_w // 2,
+            ]
+            imgs.append(img_)
         # Use mask
         if self.args.use_mask:
-            img = img * self.mask
-
-        # Do FFT convolve
-        img = fft_conv2d(img, self.fft_layer) * self.normalizer
-        # Centre Crop
-        img = img[
-            :,
-            :,
-            fft_h // 2 - img_h // 2 : fft_h // 2 + img_h // 2,
-            fft_w // 2 - img_w // 2 : fft_w // 2 + img_w // 2,
-        ]
+            mask = self.create_mask(imgs[0])
+            img = imgs[0] * mask[0, :, :]
+            for i in range(1, self.multi):
+                img += imgs[i] * mask[i, :, :]
+        # concat the images
+        # print("imgs.shape", imgs.shape)
         return img
-
+    #create mask on image, for example, if multi=5, then we need to create 5 masks on the image
+    #the first mask is full image, the second mask is left-top image,
+    #the third mask is right-top image, the fourth mask is left-bottom image, the fifth mask is right-bottom image
+    def create_mask(self, img):
+        mask = torch.zeros(self.multi, img.shape[2], img.shape[3]).to(img.device)
+        h, w = img.shape[2], img.shape[3]
+        # mask[0, :, :] = 1
+        # calculate the height and width of the mask
+        partition = np.sqrt(self.multi - 1)
+        if partition != 0:
+            height = h // partition
+            width = w // partition
+        # create the mask
+        for i in range(1, self.multi):
+            # calculate the position of the mask
+            row = (i - 1) // partition
+            col = (i - 1) % partition
+            start_row = int(row * height)
+            end_row = int((row + 1) * height)
+            if row == partition - 1:
+                end_row = h
+            start_col = int(col * width)
+            end_col = int((col + 1) * width)
+            if col == partition - 1:
+                end_col = w
+            mask[i, start_row:end_row, start_col:end_col] = 1
+        return mask 
 
 @ex.automain
 def main(_run):
     args = tupperware(_run.config)
 
-    model = FFTLayer(args).to(args.device)
+    model = MultiFFTLayer(args).to(args.device)
     img = torch.rand(1, 4, 1280, 1408).to(args.device)
 
     model(img)
