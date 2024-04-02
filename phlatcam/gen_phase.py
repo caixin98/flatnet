@@ -6,7 +6,7 @@ def normalize_data(data):
     """将数据归一化到[0, 1]范围内"""
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
-def percentile_normalization(data, lower_percentile=0, upper_percentile=99):
+def percentile_normalization(data, lower_percentile=0, upper_percentile=99.9):
     """
     对给定的数据进行百分位数归一化。
     
