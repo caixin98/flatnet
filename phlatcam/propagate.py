@@ -36,7 +36,7 @@ def prop2D(Uin, Lxy, lambda_, z, method='as'):
     # Angular spectrum
     if method.lower() == 'as':
         H = bp * np.exp(1j * 2 * np.pi * (z / lambda_) * bp * np.sqrt(1 - lambda_**2 * (Fx**2 + Fy**2)))
-    
+    # print(z)
     # Fresnel
     if method.lower() == 'fp':
         H = bp * np.exp(1j * 2 * np.pi * (z / lambda_) * bp * (1 - 0.5 * lambda_**2 * (Fx**2 + Fy**2)))
