@@ -95,6 +95,11 @@ class SpatialVaryWeight(nn.Module):
         weight = weight.unsqueeze(0).unsqueeze(2)
         weighted_img = img * weight
         result = weighted_img.sum(dim=1)
+
+        # save_path = "weight.png"
+        # cv2.imwrite("weight.png", (self.weight.data[1].cpu() * 255).numpy().astype(np.uint8))
+
+
         return result
     
     # initialize the weight with spatial varying deconvlution prior
@@ -110,13 +115,11 @@ class SpatialVaryWeight(nn.Module):
         grid_expanded = grid.unsqueeze(0)
         dists = torch.sqrt(((grid_expanded - vertices_expanded) ** 2).sum(dim=-1)) / (H + W)
         # print("dists.shape", dists)
-        weights = 1 / (dists + 1e-8)
+        weights = 1 / (dists + 1e-6)
         normalized_weights = weights / weights.sum(dim=0, keepdim=True)
         self.weight.data = normalized_weights
         # visualize the weight
-        # save_path = "weight.png"
-        # cv2.imwrite("weight.png", (normalized_weights[0] * 255).numpy().astype(np.uint8))
-
+    
 
 class MultiFFTLayer_new(nn.Module):
     def __init__(self, args: "tupperware"):
@@ -233,7 +236,7 @@ class MultiFFTLayer_new(nn.Module):
     def create_mask(self, img):
         mask = torch.zeros(self.multi, img.shape[2], img.shape[3]).to(img.device)
         h, w = img.shape[2], img.shape[3]
-        # mask[0, :, :] = 1
+        mask[0, :, :] = 1
         # calculate the height and width of the mask
         partition = np.sqrt(self.multi - 1)
         if partition != 0:

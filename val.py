@@ -62,7 +62,7 @@ def main(_run):
 
     # Set device, init dirs
     device = args.device
-    dir_init(args)
+    # dir_init(args)
 
     # ADMM or not
     is_admm = "admm" in args.exp_name
@@ -80,12 +80,14 @@ def main(_run):
     model_gen_path = ckpt_dir / "model_latest.pth"
     model_fft_path = ckpt_dir / "FFT_latest.pth"
 
-    gen_ckpt = torch.load(model_gen_path, map_location=torch.device("cpu"))
-    fft_ckpt = torch.load(model_fft_path, map_location=torch.device("cpu"))
+    if  model_gen_path.exists() and model_fft_path.exists():
+        logging.info(f"Loading model from {model_gen_path}")
+        gen_ckpt = torch.load(model_gen_path, map_location=torch.device("cpu"))
+        fft_ckpt = torch.load(model_fft_path, map_location=torch.device("cpu"))
 
-    # G.load_state_dict(gen_ckpt["state_dict"])
-    load_state_dict(G, gen_ckpt["state_dict"])
-    load_state_dict(FFT, fft_ckpt["state_dict"])
+        # G.load_state_dict(gen_ckpt["state_dict"])
+        load_state_dict(G, gen_ckpt["state_dict"])
+        load_state_dict(FFT, fft_ckpt["state_dict"])
 
     G = G.to(device)
     FFT = FFT.to(device)
@@ -180,23 +182,29 @@ def main(_run):
             metrics_dict["LPIPS_01"] += lpips_criterion(
                 output.mul(0.5).add(0.5), target.mul(0.5).add(0.5)
             ).mean().item()
-
+            # print(filename, lpips_criterion(
+            #     output.mul(0.5).add(0.5), target.mul(0.5).add(0.5)
+            # ).mean().item())
             metrics_dict["LPIPS_11"] += lpips_criterion(output, target).mean().item()
 
             for e in range(args.batch_size):
                 # Compute SSIM
                 fft_output_vis = []
-                if not is_admm and is_multi:
-                    for i in range(args.multi):
-                        fft_output_vis.append(rggb_2_rgb(fft_output[e][4*i:4*i+4]).mul(0.5).add(0.5))
-                else:
+     
+                
+                if is_admm:
                     fft_output_vis.append(fft_output[e].mul(0.5).add(0.5))
+                else:
+                    in_c = fft_output[e].shape[0]
+                    for i in range(in_c // 4):
+                        fft_output_vis.append(rggb_2_rgb(fft_output[e][4*i:4*i+4]).mul(0.5).add(0.5))
+
                 for i in range(len(fft_output_vis)):
                     fft_output_vis[i] = (fft_output_vis[i] - fft_output_vis[i].min()) / (
                         fft_output_vis[i].max() - fft_output_vis[i].min()
                     )
                     fft_output_vis[i] = fft_output_vis[i].permute(1, 2, 0).cpu().detach().numpy()
-          
+
 
                 output_numpy = (
                     output[e].mul(0.5).add(0.5).permute(1, 2, 0).cpu().detach().numpy()

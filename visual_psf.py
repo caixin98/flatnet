@@ -69,7 +69,7 @@ def main(_run):
             save_path = visual_path / f"wiener_crop_{i}.png"
             visual_psf(FFT.wiener_crop[i], save_path=save_path)
             # calculate the difference of the wiener crop
-            diff = FFT.wiener_crop[i] - FFT.wiener_crop[0]
+            diff = FFT.wiener_crop[i] - FFT.wiener_crop[5]
             # print(FFT.wiener_crop[i])
             print("PSF i - 0 diff:",torch.sum(torch.abs(diff)))
             save_path = visual_path / f"wiener_crop_diff_{i}.png"

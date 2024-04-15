@@ -23,7 +23,7 @@ def base_config():
     test_glob_pattern = "test_set_Jan/cap*.png"
 
     image_dir = Path("data")
-    output_dir = Path("flatnet_oss/output_phase_mask_Feb_2020_size_384") / exp_name
+    output_dir = Path("output_phase_mask_Feb_2020_size_384") / exp_name
     ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / exp_name
     run_dir = Path("flatnet_oss/runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
     test_image_dir = image_dir / "PhaseCapture_Webcam" / "saves"
@@ -140,6 +140,7 @@ def base_config():
     lambda_contextual = 0.0
     lambda_perception = 1.2  # 0.006
     lambda_image = 1  # mse
+    lambda_l1 = 0 # l1
 
     resume = False
     finetune = False  # Wont load loss or epochs
@@ -164,7 +165,7 @@ def ours_meas_1280_1408():
     # fft_learning_rate = 4e-10
     batch_size = 5
     num_threads = 5
-    lambda_adversarial = 0.0
+    lambda_adversarial = 0.6
     # val_train = True
 
 def ours_meas_1280_1408_decoded_sim():
@@ -177,6 +178,20 @@ def ours_meas_1280_1408_decoded_sim():
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
+    # T_0 = 8
+
+def ours_meas_1280_1408_decoded_sim_unet_new():
+    exp_name = "fft-1280-1408-learn-meas-1280-1408-decoded_sim_unet_new"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 3e-4 
+    # fft_learning_rate = 4e-10 
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    model = "unet_new"
+    pixelshuffle_ratio = 1
     # T_0 = 8
 
 
@@ -312,7 +327,20 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_mask():
     multi = 10
 
 def ours_meas_1280_1408_decoded_sim_mulnew9():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight"
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_val_train"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 5e-4
+    # fft_learning_rate = 5e-10
+    batch_size = 5
+    num_threads = 5
+    val_train = True
+    lambda_adversarial = 0.0
+    use_spatial_weight = True
+    multi = 10
+
+def ours_meas_1280_1408_decoded_sim_mulnew9_l1():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_l1"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 5e-4
@@ -323,6 +351,25 @@ def ours_meas_1280_1408_decoded_sim_mulnew9():
     lambda_adversarial = 0.0
     use_spatial_weight = True
     multi = 10
+    lambda_l1 = 1.0
+    lambda_image = 0
+
+
+def ours_meas_1280_1408_decoded_sim_mulnew9_unet_new():
+    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_unet_new"
+    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+    # learning_rate = 5e-4
+    # fft_learning_rate = 5e-10
+    batch_size = 5
+    num_threads = 5
+    model = "unet_new"
+    pixelshuffle_ratio = 1
+    # val_train = True
+    lambda_adversarial = 0.0
+    use_spatial_weight = True
+    multi = 10
+    
 
 def ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle():
     exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_no_pixelshuffle"
@@ -871,6 +918,7 @@ named_config_ll = [
     ours_meas_1280_1408_decoded_sim,
     ours_meas_1280_1408_decoded_sim_val_train,
     ours_meas_1280_1408_decoded_sim_ad,
+    ours_meas_1280_1408_decoded_sim_unet_new,
     #multi + decoded_sim
     ours_meas_1280_1408_decoded_sim_multi,
     ours_meas_1280_1408_decoded_sim_multi_ad,
@@ -888,7 +936,10 @@ named_config_ll = [
     ours_meas_1280_1408_mulnew,
     ours_meas_1280_1408_decoded_sim_mulnew9,
     ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update,
-    ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle
+    ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle,
+    ours_meas_1280_1408_decoded_sim_mulnew9_unet_new,
+    ours_meas_1280_1408_decoded_sim_mulnew9_l1,
+   
 ]
 
 

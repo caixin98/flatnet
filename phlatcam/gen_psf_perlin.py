@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_gradient_magnitude
-from skimage.filters import sobel
 from waveprop.rs import angular_spectrum_np, angular_spectrum, direct_integration
 from waveprop.fresnel import fresnel_conv, shifted_fresnel
 from waveprop.util import sample_points

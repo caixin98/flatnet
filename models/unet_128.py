@@ -64,6 +64,14 @@ class Unet(nn.Module):
                 padding=(3, 3),
                 bias=False,
             ),
+            # nn.Conv2d(
+            #     in_c * args.pixelshuffle_ratio ** 2,
+            #     128,
+            #     kernel_size=(4, 4),
+            #     stride=(2, 2),
+            #     padding=(1, 1),
+            #     bias=False,
+            # ),
             normaliser(128),
             nn.ReLU(inplace=True),
         )  # size=(N, 128, x.H/2, x.W/2)

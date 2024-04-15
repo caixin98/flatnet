@@ -103,10 +103,16 @@ class GLoss(nn.modules.Module):
         self.contextual_loss = torch.tensor(0.0).to(device)
         self.perception_loss = torch.tensor(0.0).to(device)
         self.image_loss = torch.tensor(0.0).to(device)
+    
 
         if self.args.lambda_image:
             self.image_loss += (
                 F.mse_loss(output, target).mean() * self.args.lambda_image
+            )
+
+        if self.args.lambda_l1:
+            self.image_loss += (
+                F.l1_loss(output, target).mean() * self.args.lambda_l1
             )
 
         if self.args.lambda_perception:
