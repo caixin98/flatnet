@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 from sacred import Experiment
 import numpy as np
 import torch.nn as nn
-
+from torchvision.transforms.functional import (
+    to_tensor,
+    resize,
+)
 from config import initialise
 from utils.ops import roll_n
 from utils.tupperware import tupperware
@@ -12,9 +15,24 @@ import cv2
 if TYPE_CHECKING:
     from utils.typing_alias import *
 
+from PIL import Image
+
 ex = Experiment("FFT-Layer")
 ex = initialise(ex)
 
+SIZE = 270, 480
+
+def transform(image, gray=False):
+    image = np.flip(np.flipud(image), axis=2)
+    image = image.copy()
+    image = to_tensor(image)
+    image = resize(image, SIZE)
+    image = image.mean(0, keepdim=True)
+    return image
+
+def load_psf(path):
+    psf = np.array(Image.open(path))
+    return transform(psf)
 
 def fft_conv2d(input, kernel):
     """
@@ -49,10 +67,9 @@ def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     """
 
     if centre_roll:
-        for dim in range(2):
+        for dim in range(1,3):
             psf = roll_n(psf, axis=dim, n=psf.shape[dim] // 2)
 
-    psf = psf.unsqueeze(0)
 
     # Perform 2D FFT
     H = torch.fft.fft2(psf)
@@ -68,12 +85,13 @@ def get_wiener_matrix(psf, Gamma: int = 20000, centre_roll: bool = True):
     wiener_mat = torch.fft.ifft2(W)
 
     # Extract the real part
-    return wiener_mat.real[0]
+    return wiener_mat.real
 
 def generate_vertices(K, H, W):
-    step_h = H // (K ** 0.5 - 1) 
-    step_w = W // (K ** 0.5 - 1)
-    vertices = [(h, w) for h in torch.arange(0, H + 1, step=step_h) for w in torch.arange(0, W + 1, step=step_w)]
+    step_h = H // (K ** 0.5 * 2) 
+    step_w = W // (K ** 0.5 * 2)
+    vertices = [(h, w) for h in torch.arange(step_h, H-step_h + 1, step=step_h * 2) for w in torch.arange(step_w, W-step_w + 1, step=step_w * 2)]
+    # print(vertices)
     return torch.tensor(vertices[:K])  # 返回前K个均匀分布的点
 
 class SpatialVaryWeight(nn.Module):
@@ -121,7 +139,7 @@ class SpatialVaryWeight(nn.Module):
         # visualize the weight
     
 
-class MultiFFTLayer_new(nn.Module):
+class MultiFFTLayer_diff(nn.Module):
     def __init__(self, args: "tupperware"):
         super().__init__()
         self.args = args
@@ -130,9 +148,12 @@ class MultiFFTLayer_new(nn.Module):
         
         # requires_grad = args.fft_requires_grad
         # if args.psf_mat.endswith(".npy"):
-        psf = torch.tensor(np.load(args.psf_mat)).float()
+        psf = load_psf(args.psf_mat)
         # elif args.psf_mat.endswith(".png") or args.psf_mat.endswith(".jpg"):
         #     psf = torch.tensor(cv2.imread(args.psf_mat, cv2.IMREAD_GRAYSCALE)).float()
+        if len(psf.shape) == 2:
+            psf = psf.unsqueeze(0)
+
         self.multi = args.multi
 
         psf_crop_top = args.psf_centre_x - args.psf_crop_size_x // 2
@@ -140,19 +161,24 @@ class MultiFFTLayer_new(nn.Module):
         psf_crop_left = args.psf_centre_y - args.psf_crop_size_y // 2
         psf_crop_right = args.psf_centre_y + args.psf_crop_size_y // 2
 
-        psf_crop = psf[psf_crop_top:psf_crop_bottom, psf_crop_left:psf_crop_right]
+        psf_crop = psf[:,psf_crop_top:psf_crop_bottom, psf_crop_left:psf_crop_right]
 
-        self.psf_height, self.psf_width = psf_crop.shape
+        _, self.psf_height, self.psf_width = psf_crop.shape
 
-        wiener_crop = get_wiener_matrix(
-            psf_crop, Gamma=args.fft_gamma, centre_roll=False
-        )
-        wiener_crop_tensor = wiener_crop.repeat(self.multi, 1, 1)
+        self.psf_crop = nn.Parameter(psf_crop.repeat(self.multi, 1, 1, 1), requires_grad=requires_grad)
+        self.gamma = nn.Parameter(torch.tensor([args.fft_gamma] *  self.multi, dtype=torch.float32), requires_grad=requires_grad)
 
-        self.wiener_crop =nn.Parameter(wiener_crop_tensor, requires_grad=requires_grad)
+
+        # wiener_crop = get_wiener_matrix(
+        #     psf_crop, Gamma=args.fft_gamma, centre_roll=False
+        # )
+        # wiener_crop_tensor = wiener_crop.repeat(self.multi, 1, 1, 1)
+
+        # self.wiener_crop =nn.Parameter(wiener_crop_tensor, requires_grad=requires_grad)
+
         # self.wiener_crop = nn.ParameterList(self.wiener_crop)
         self.normalizer = nn.Parameter(
-            torch.tensor([1 / 0.0008]).reshape(1, 1, 1).repeat(self.multi, 1, 1), requires_grad=requires_grad
+            torch.tensor([1 / 0.0008]).reshape(1, 1, 1, 1).repeat(self.multi, 1, 1, 1), requires_grad=requires_grad
         )
 
 
@@ -165,21 +191,24 @@ class MultiFFTLayer_new(nn.Module):
         pad_x = self.args.psf_height - self.args.psf_crop_size_x
         pad_y = self.args.psf_width - self.args.psf_crop_size_y
         self.fft_layers = []
+        
         # Pad to psf_height, psf_width
         for i in range(self.multi):
-            self.fft_layer = 1 * self.wiener_crop[i]
+            self.fft_layer = 1 * get_wiener_matrix(
+            self.psf_crop[i], Gamma=self.gamma[i], centre_roll=False
+        )
             self.fft_layer = F.pad(
             self.fft_layer, (pad_y // 2, pad_y // 2, pad_x // 2, pad_x // 2)
             )
-            # print(self.fft_layer.shape)
+
             # Centre roll
-            for dim in range(2):
+            for dim in range(1,3):
                 self.fft_layer = roll_n(
                     self.fft_layer, axis=dim, n=self.fft_layer.size(dim) // 2
                 )
 
-            # Make 1 x 1 x H x W
-            self.fft_layer = self.fft_layer.unsqueeze(0).unsqueeze(0)
+            # Make 1 x 3 x H x W
+            self.fft_layer = self.fft_layer.unsqueeze(0)
             # print("self.fft_layer.shape", self.fft_layer.shape)
             # FFT Layer dims
             _, _, fft_h, fft_w = self.fft_layer.shape
@@ -216,20 +245,25 @@ class MultiFFTLayer_new(nn.Module):
         # Use mask
         if self.args.use_mask:
             mask = self.create_mask(imgs[0])
-            img = imgs[0] * mask[0, :, :]
+            img_deconv = imgs[0] * mask[0, :, :]
             for i in range(1, self.multi):
-                img += imgs[i] * mask[i, :, :]
+                img_deconv += imgs[i] * mask[i, :, :]
         elif self.args.use_spatial_weight:
             img_0 = imgs[0]
             spatial_weight = SpatialVaryWeight(self.args).to(img.device)
             img_1 = spatial_weight(torch.stack(imgs[1:], dim=1))
-            img = torch.cat([img_0, img_1], dim=1)
+            img_deconv = torch.cat([img_0, img_1], dim=1)
         else:
-            img = torch.cat(imgs, dim=1)
-            print("img.shape", img.shape)
+            img_deconv = torch.cat(imgs, dim=1)
+        
+        if self.args.concat_input:
+            output_img = torch.cat([img, img_deconv], 1)
+        else:
+            output_img = img_deconv
+        return output_img
         # concat the images
         # print("imgs.shape", imgs.shape)
-        return img
+        # return img
     #create mask on image, for example, if multi=5, then we need to create 5 masks on the image
     #the first mask is full image, the second mask is left-top image,
     #the third mask is right-top image, the fourth mask is left-bottom image, the fifth mask is right-bottom image

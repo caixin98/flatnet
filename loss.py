@@ -127,7 +127,7 @@ class GLoss(nn.modules.Module):
                 * self.args.lambda_contextual
             )
 
-        if len(fake_logit):
+        if fake_logit.dim() > 0:
             self.adversarial_loss += (
                 F.binary_cross_entropy_with_logits(fake_logit, ones_like(fake_logit))
                 * self.args.lambda_adversarial
