@@ -57,6 +57,8 @@ def roll_n(X, axis, n):
     return torch.cat([back, front], axis)
 
 def rggb_2_rgb(img: "Tensor[4,H,W]") -> "Tensor[3,H,W]":
+    if img.shape[0] == 3:
+        return img
     img_rgb = torch.zeros_like(img)[:3]
     img_rgb[0] = img[0]
     img_rgb[1] = 0.5 * (img[1] + img[2])

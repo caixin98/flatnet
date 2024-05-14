@@ -10,12 +10,34 @@ import torch
 import torch.nn.functional as F
 import sys
 from pathlib import Path
+from torchvision.transforms.functional import (
+    to_tensor,
+    resize,
+)
+from PIL import Image
 from waveprop.devices import  SensorParam
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from models.fftlayer import FFTLayer
-from config import fft_args
-FFT = FFTLayer(fft_args)
-sensor = dict(size = np.array([4.8e-6 * 1518, 4.8e-6 * 2012]))
+from models.fftlayer_diff_original import FFTLayer_diff
+from diff_config import fft_args
+FFT = FFTLayer_diff(fft_args)
+SIZE = 270*8, 480*8
+
+sensor = dict(size = np.array([4.8e-6 * 1080, 4.8e-6 * 1920]))
+# 4.8 * 10e-6 * 4 * 480 = 0.009216
+# 2e-3 / 0.009216 * 0.4 = 0.08680555555555556
+
+def transform(image, gray=False):
+    # image = np.flip(np.flipud(image), axis=2)
+    image = image.copy()
+    image = to_tensor(image)
+    image = resize(image, SIZE)
+    # average the RGB channels
+    image = image.mean(0, keepdim=True)
+    return image
+
+def load_psf(path):
+    psf = np.array(Image.open(path))
+    return transform(psf)
 
 
 def parse_args():
@@ -90,7 +112,10 @@ def adjust_light_intensity(image, min_weight=0.2):
 
 def load_sim_save(simulator, obj_path, save_path, use_adjust_light_intensity=False):
     # load object
-    obj = cv2.imread(obj_path)
+    # obj = cv2.imread(obj_path)
+    obj = np.load(obj_path)
+
+    # print("obj shape: ", obj.shape)
     # obj = cv2.normalize(obj, None, 0, 255, cv2.NORM_MINMAX)
     if use_adjust_light_intensity:
         print("adjust light intensity")
@@ -99,25 +124,39 @@ def load_sim_save(simulator, obj_path, save_path, use_adjust_light_intensity=Fal
     # simulate
     obj = torch.tensor(obj).permute(2, 0, 1).unsqueeze(0).float()
     img = simulator.propagate(obj)
+    print("img shape: ", img.shape)
     #normalize img
-  
+    # img = img.squeeze().permute(1, 2, 0).numpy()
     # img = img - np.min(img)
     # img = img / np.max(img) * 255
 
+    # #save the image
+    # save_path = os.path.join(save_path, os.path.basename(obj_path))
+    # os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    # print(f"save_path: {save_path}")
+    # cv2.imwrite(save_path, img)
     # capture = torch.tensor(img).permute(2, 0, 1).unsqueeze(0).float()
     
     capture = img
     # decoded = capture
     decoded = FFT(capture)
     decoded = (decoded - decoded.min()) / (decoded.max() - decoded.min())
-    decoded = decoded * 255
-    decoded = decoded.squeeze().permute(1, 2, 0).detach().numpy().astype(np.uint8)    
 
+    decoded = decoded.squeeze().permute(1, 2, 0).detach().numpy()
 
-    save_path = os.path.join(save_path, os.path.basename(obj_path))
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    print(f"save_path: {save_path}")
-    cv2.imwrite(save_path, decoded)
+    save_npy_path = os.path.join(save_path, os.path.basename(obj_path))
+    os.makedirs(os.path.dirname(save_npy_path), exist_ok=True)
+    print(f"save_path: {save_npy_path}")
+    # cv2.imwrite(save_path, img)
+    np.save(save_npy_path, img)
+
+    decoded = (decoded * 255).astype(np.uint8)    
+
+    save_png_path = os.path.join(save_path + "_png", os.path.basename(obj_path))
+    save_png_path = save_png_path.replace(".npy", ".png")
+    os.makedirs(os.path.dirname(save_png_path), exist_ok=True)
+    print(f"save_path: {save_png_path}")
+    cv2.imwrite(save_png_path, decoded)
    
 
 if __name__ == "__main__":
@@ -126,24 +165,27 @@ if __name__ == "__main__":
     obj_path = args.obj_path
     save_path = args.save_path
     adj = args.adj
-
+    psf = load_psf(args.psf_path)
     # load psf
-    psf = np.load(psf_path)
-    # add last dimension
-    psf = psf[..., None]
-    print(psf.shape)
-    psf = crop_and_padding(psf)
+    # psf = np.load(psf_path)
+    # # add last dimension
+    # psf = psf[..., None]
+    # print(psf.shape)
+    # psf = crop_and_padding(psf)
+    
     # transfer the psf 
-    simulator = FarFieldSimulator(object_height = 0.4, scene2mask = 0.434, mask2sensor = 2e-3, sensor = sensor, psf = psf, is_torch=True, quantize=False, return_float=True)
+    simulator = FarFieldSimulator(object_height = 0.4, scene2mask = 0.0868*8, mask2sensor = 2e-3, sensor = sensor, psf = psf, is_torch=True, quantize=False, return_float=True)
 
     if os.path.isdir(obj_path):
         obj_path_list = os.listdir(obj_path)
         obj_path_list = [os.path.join(obj_path, obj_path_i) for obj_path_i in obj_path_list]
         for obj_path_i in obj_path_list:
-            load_sim_save(simulator, obj_path_i, save_path, use_adjust_light_intensity=adj)
+            if obj_path_i.endswith(".npy"):
+                load_sim_save(simulator, obj_path_i, save_path, use_adjust_light_intensity=adj)
     else:
         load_sim_save(simulator, obj_path, save_path, use_adjust_light_intensity=adj)
 
 # python tools/decode_and_sim_rgb.py --psf_path data/phase_psf/psf.npy --obj_path /root/caixin/StableSR/data/flatnet_val/gts --save_path /root/caixin/StableSR/data/flatnet_val/sim_captures
 # python tools/decode_and_sim_rgb.py --obj_path  /root/caixin/StableSR/data/flatnet/gts/n01440764_457.png
 
+# python tools/decode_and_sim_rgb_diff.py --psf_path /root/caixin/flatnet/data/diffusercam/psf.tiff --obj_path /root/caixin/flatnet/data/diffusercam/ground_truth_lensed_png/im_137.png --save_path /root/caixin/flatnet/data/diffusercam/sim_captures/im_137.png

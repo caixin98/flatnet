@@ -24,8 +24,8 @@ def base_config():
 
     image_dir = Path("data")
     output_dir = Path("output_phase_mask_Feb_2020_size_384") / exp_name
-    ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / exp_name
-    run_dir = Path("flatnet_oss/runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
+    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / exp_name
+    run_dir = Path("runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
     test_image_dir = image_dir / "PhaseCapture_Webcam" / "saves"
 
     # ---------------------------------------------------------------------------- #
@@ -82,7 +82,7 @@ def base_config():
     image_height = 384
     image_width = 384
 
-    batch_size = 18
+    batch_size = 10
     num_threads = batch_size >> 1  # parallel workers
 
     # ---------------------------------------------------------------------------- #
@@ -166,7 +166,18 @@ def ours_meas_1280_1408():
     batch_size = 5
     num_threads = 5
     lambda_adversarial = 0.6
+
     # val_train = True
+
+def ours_meas_1280_1408_no_ad():
+    exp_name = "fft-1280-1408-learn-1280-1408-meas-no_ad"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 10
+    num_threads = 5
+    lambda_adversarial = 0.0
+    lambda_perception = 0.05  # 0.006
+
 
 def ours_meas_1280_1408_decoded_sim():
     exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
@@ -655,6 +666,7 @@ def ours_meas_990_1254_finetune_dualcam_1cap():
 
 def naive_meas_1280_1408():
     exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408"
+    lambda_adversarial = 0.0
 
 
 def naive_meas_1280_1408_unet_64():
@@ -890,6 +902,7 @@ named_config_ll = [
     naive_meas_512_640,
     naive_meas_512_640_simulated,
     naive_meas_400_400,
+    ours_meas_1280_1408_no_ad,
     # Le ADMM
     le_admm_meas_1280_1408,
     le_admm_meas_1280_1408_simulated,
@@ -954,8 +967,8 @@ fft_args = {
     "psf_mat": Path("data/phase_psf/psf.npy"),
     "psf_height": 1518,
     "psf_width": 2012,
-    "psf_centre_x": 808 + 10,
-    "psf_centre_y": 965 + 10,
+    "psf_centre_x": 808 ,
+    "psf_centre_y": 965 ,
     "psf_crop_size_x": 1280,
     "psf_crop_size_y": 1408,
     "meas_height": 1518,

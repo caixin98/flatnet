@@ -24,8 +24,8 @@ def base_config():
 
     image_dir = Path("data/diffusercam")
     output_dir = Path("output_diffusercam") / exp_name
-    ckpt_dir = Path("flatnet_oss/ckpts_diffusercam") / exp_name
-    run_dir = Path("flatnet_oss/runs_diffusercam") / exp_name  # Tensorboard
+    ckpt_dir = Path("ckpts_diffusercam") / exp_name
+    run_dir = Path("runs_diffusercam") / exp_name  # Tensorboard
 
     # ---------------------------------------------------------------------------- #
     # Data
@@ -34,36 +34,38 @@ def base_config():
     dataset_name = "diffusercam"
 
     shuffle = True
-    train_gaussian_noise = 5e-3
+    train_gaussian_noise = 0.0
 
     # ---------------------------------------------------------------------------- #
     # Image, Meas, PSF Dimensions
     # ---------------------------------------------------------------------------- #
     # PSF
-    psf_mat = Path("data/phase_psf/psf.npy")
+    psf_mat = Path("data/diffusercam/psf.tiff")
 
-    meas_height = 1080  # original height of meas
-    meas_width = 1920  # original width of meas
-  
-    meas_centre_x = 960
-    meas_centre_y = 540
+    meas_height = 270  # original height of meas
+    meas_width = 480  # original width of meas
+    decode_sim = False
 
-    psf_height = 1080  # fft layer height
-    psf_width = 1920  # fft layer width
-    psf_crop_size_x = 1080
-    psf_crop_size_y = 1920
+    meas_centre_x = 135
+    meas_centre_y = 240
+
+    psf_height = 270  # fft layer height
+    psf_width = 480  # fft layer width
+    psf_crop_size_x = 270
+    psf_crop_size_y = 480
     psf_centre_x = meas_centre_x
     psf_centre_y = meas_centre_y
-
-    fft_gamma = 50000
-
+    meas_crop_size_x = 270
+    meas_crop_size_y = 480
+    fft_gamma = 5000
+    use_mask = False
     # pad meas
     pad_meas_mode = "replicate" if not is_admm else "constant"  # If none, no padding
-
+    preprocess_with_unet = False
 
     image_height = 270
     image_width = 480
-
+    model = "UNet270480"
     batch_size = 18
     num_threads = batch_size >> 1  # parallel workers
 
@@ -74,8 +76,8 @@ def base_config():
     num_epochs = 100
     fft_epochs = num_epochs if is_naive else 0
 
-    learning_rate = 3e-4
-    fft_learning_rate = 4e-10 if not is_admm else 3e-5
+    learning_rate = 1e-4
+    fft_learning_rate = 3e-5 if not is_admm else 3e-5
 
     # Betas for AdamW. We follow https://arxiv.org/pdf/1704.00028
     beta_1 = 0.9  # momentum
@@ -104,7 +106,7 @@ def base_config():
     # Model
     # ---------------------------------------------------------------------------- #
     # See models/get_model.py for registry
-    model = "unet-128-pixelshuffle-invert"
+    # model = "unet-128-pixelshuffle-invert"
     pixelshuffle_ratio = 2
     grad_lambda = 0.0
     # admm model args
@@ -126,7 +128,8 @@ def base_config():
 
     resume = False
     finetune = False  # Wont load loss or epochs
-
+    concat_input = False
+    zero_conv = False
     # ---------------------------------------------------------------------------- #
     # Inference Args
     # ---------------------------------------------------------------------------- #
@@ -140,99 +143,57 @@ def base_config():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     distdataparallel = False
     val_train = False
-
-def ours_meas_1280_1408():
-    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408"
+    static_val_image = ""
+def ours_diffusercam():
+    exp_name = "fft-diffusercam"
     # learning_rate = 3e-4
     # fft_learning_rate = 4e-10
-    batch_size = 5
+    batch_size = 10
     num_threads = 5
-    lambda_adversarial = 0.6
-    # val_train = True
-
-def ours_meas_1280_1408_decoded_sim():
-    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4 
-    # fft_learning_rate = 4e-10 
-    batch_size = 5
-    num_threads = 5
-    # val_train = True
     lambda_adversarial = 0.0
-    # T_0 = 8
-
-def ours_meas_1280_1408_decoded_sim_unet_new():
-    exp_name = "fft-1280-1408-learn-meas-1280-1408-decoded_sim_unet_new"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4 
-    # fft_learning_rate = 4e-10 
+    # val_train = True
+def le_admm_diffusercam():
+    exp_name = "le-admm-fft-diffusercam"
+    lambda_adversarial = 0.0
+    psf_mat = Path("data/diffusercam/psf_flip.npy")
     batch_size = 5
     num_threads = 5
-    # val_train = True
-    lambda_adversarial = 0.0
-    model = "unet_new"
-    pixelshuffle_ratio = 1
-    # T_0 = 8
+    num_epochs = 30
 
 
-def ours_meas_1280_1408_decoded_sim_multi():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+def ours_diffusercam_concat_input():
+    exp_name = "fft-diffusercam_concat_input"
     # learning_rate = 3e-4
     # fft_learning_rate = 4e-10
+    batch_size = 10
+    num_threads = 5
+    lambda_adversarial = 0.0
+    concat_input = True
+    # val_train = True
+
+def ours_diffusercam_decoded_sim():
+    exp_name = "fft-mulnew9-diffusercam_unet_decoded_sim_val_train"
+    val_train = True
     batch_size = 5
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
     multi = 10
-
-def ours_meas_1280_1408_decoded_sim_multi_shift():
-    exp_name = "fft-multi-shift-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
-    batch_size = 5
-    num_threads = 5
-    # val_train = True
-    lambda_adversarial = 0.0
-    multi = 10
-
-def ours_meas_1280_1408_multi():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408"
-    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
-    batch_size = 5
-    num_threads = 5
-    # val_train = True
-    lambda_adversarial = 0.0
-    multi = 10
-
-
-def ours_meas_1280_1408_mulnew():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408"
-    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
-    batch_size = 5
-    num_threads = 5
-    # val_train = True
-    lambda_adversarial = 0.0
-    multi = 9
     use_spatial_weight = True
+    # resume = True
+    # finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    preprocess_with_unet = True
+    decode_sim = True
+    ckpt_dir = Path("ckpts_diffusercam") / exp_name.replace("_val_train", "")
 
 
 
-def ours_meas_1280_1408_decoded_sim_multi_ad():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+
+def ours_diffusercam_multi():
+    exp_name = "fft-multi9-diffusercam"
+    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
     # fft_learning_rate = 4e-10
     batch_size = 5
@@ -241,88 +202,115 @@ def ours_meas_1280_1408_decoded_sim_multi_ad():
     lambda_adversarial = 0.6
     multi = 10
 
-def ours_meas_1280_1408_decoded_sim_multi_cunet():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_cunet"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
+
+def ours_diffusercam_mulnew():
+    exp_name = "fft-mulnew9-diffusercam"
+    # val_train = True
     batch_size = 5
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
     multi = 10
-    model = "cunet-128-pixelshuffle-invert"
+    use_spatial_weight = True
+    resume = True
+    finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    # ckpt_dir = Path("ckpts_diffusercam") / exp_name.replace("_val_train", "")
 
-def ours_meas_1280_1408_decoded_sim_multi_mask():
-    exp_name = "fft-multi-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
+def ours_diffusercam_mulnew_unet():
+    exp_name = "fft-mulnew9-diffusercam_unet"
+    # val_train = True
     batch_size = 5
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
-    use_mask = True
-    multi = 5
-
-def ours_meas_1280_1408_decoded_sim_multi9_mask():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    # fft_learning_rate = 4e-10
-    batch_size = 5
-    num_threads = 5
-    # val_train = True
-    lambda_adversarial = 0.0
-    use_mask = True
     multi = 10
+    use_spatial_weight = True
+    # resume = True
+    # finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    preprocess_with_unet = True
 
-def ours_meas_1280_1408_decoded_sim_multi9_mask_cunet():
-    exp_name = "fft-multi9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask_cunet"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    fft_learning_rate = 4e-10
+
+def ours_diffusercam_mulnew_unet_padding():
+    exp_name = "fft-mulnew9-diffusercam_unet_padding"
+    # val_train = True
     batch_size = 5
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
-    use_mask = True
     multi = 10
-    model = "cunet-128-pixelshuffle-invert"
-
+    use_spatial_weight = True
+    # resume = True
+    # finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    preprocess_with_unet = True
+    psf_height = 270 * 2
+    psf_width = 480 * 2
     
-def ours_meas_1280_1408_decoded_sim_mulnew9_mask():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_mask-new"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
-    # learning_rate = 3e-4
-    fft_learning_rate = 4e-10
+
+def ours_diffusercam_mulnew_unet_padding_decode_sim():
+    exp_name = "fft-mulnew9-diffusercam_unet_padding_decode_sim_val_train"
+    val_train = True
+    batch_size = 5
+    num_threads = 5
+    lambda_adversarial = 0.0
+    multi = 10
+    use_spatial_weight = True
+    # resume = True
+    # finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    preprocess_with_unet = True
+    psf_height = 270 * 2
+    psf_width = 480 * 2
+    decode_sim = True
+    num_epochs = 40
+    ckpt_dir = Path("ckpts_diffusercam") / exp_name.replace("_val_train", "")
+
+def ours_diffusercam_mulnew_unet_zero_conv():
+    exp_name = "fft-mulnew9-diffusercam_unet_zero_conv"
+    # val_train = True
     batch_size = 5
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
-    use_mask = True
     multi = 10
+    use_spatial_weight = True
+    weight_update = False
+    # resume = True
+    # finetune = True  # Wont load loss or epochs
+    lambda_perception = 0.05
+    preprocess_with_unet = True
+    zero_conv = True
 
-def ours_meas_1280_1408_decoded_sim_mulnew9():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight"
-    train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
-    val_target_list = "data/text_files/decoded_sim_captures_val.txt"
+def ours_diffusercam_mulnew_concat_input():
+    exp_name = "fft-mulnew9-diffusercam-concat_input"
+  
+    batch_size = 5
+    num_threads = 5
+    # val_train = True
+    lambda_adversarial = 0.0
+    multi = 10
+    use_spatial_weight = True
+    concat_input = True
+ 
+
+def ours_diffusercam_decoded_sim_mulnew9():
+    exp_name = "fft-mulnew9-diffusercam-decoded_sim_spatial_weight"
+    # train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
+    # val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 5e-4
     # fft_learning_rate = 5e-10
     batch_size = 5
     num_threads = 5
+    decode_sim = True
     # val_train = True
     lambda_adversarial = 0.0
     use_spatial_weight = True
     multi = 10
 
-def ours_meas_1280_1408_decoded_sim_mulnew9_l1():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_l1"
+def ours_diffusercam_decoded_sim_mulnew9_l1():
+    exp_name = "fft-mulnew9-diffusercam-decoded_sim_spatial_weight_l1"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 5e-4
@@ -337,8 +325,8 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_l1():
     lambda_image = 0
 
 
-def ours_meas_1280_1408_decoded_sim_mulnew9_unet_new():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_unet_new"
+def ours_diffusercam_decoded_sim_mulnew9_unet_new():
+    exp_name = "fft-mulnew9-diffusercam-decoded_sim_unet_new"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 5e-4
@@ -353,8 +341,8 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_unet_new():
     multi = 10
     
 
-def ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_no_pixelshuffle"
+def ours_diffusercam_decoded_sim_mulnew9_no_pixelshuffle():
+    exp_name = "fft-mulnew9-diffusercam-decoded_sim_spatial_weight_no_pixelshuffle"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 5e-4
@@ -368,8 +356,8 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle():
     pixelshuffle_ratio = 1
     
 
-def ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update():
-    exp_name = "fft-mulnew9-1280-1408-learn-1280-1408-meas-decoded_sim_spatial_weight_no_weight_update"
+def ours_diffusercam_decoded_sim_mulnew9_no_weight_update():
+    exp_name = "fft-mulnew9-diffusercam-decoded_sim_spatial_weight_no_weight_update"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
@@ -382,8 +370,8 @@ def ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update():
     multi = 10
     weight_update = False
 
-def ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad():
-    exp_name = "fft-multi-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad_no_add_grad"
+def ours_diffusercam_decoded_sim_multi_ad_no_add_grad():
+    exp_name = "fft-multi-diffusercam-1280-1408-decoded_sim_ad_no_add_grad"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
@@ -397,8 +385,8 @@ def ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad():
     learning_rate = 3e-4 
     fft_learning_rate = 4e-10 
 
-def ours_meas_1280_1408_decoded_sim_ad():
-    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_ad"
+def ours_diffusercam_decoded_sim_ad():
+    exp_name = "fft-diffusercam-1280-1408-decoded_sim_ad"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     learning_rate = 3e-4 
@@ -411,8 +399,8 @@ def ours_meas_1280_1408_decoded_sim_ad():
     # val_train = True
     lambda_adversarial = 0.6
 
-def ours_meas_1280_1408_decoded_sim_val_train():
-    exp_name = "fft-1280-1408-learn-1280-1408-meas-1280-1408-decoded_sim_val_train"
+def ours_diffusercam_decoded_sim_val_train():
+    exp_name = "fft-diffusercam-1280-1408-decoded_sim_val_train"
     train_target_list =  "data/text_files/decoded_sim_captures_train.txt"
     val_target_list = "data/text_files/decoded_sim_captures_val.txt"
     # learning_rate = 3e-4
@@ -422,35 +410,35 @@ def ours_meas_1280_1408_decoded_sim_val_train():
     val_train = True
     lambda_adversarial = 0.0
 
-def ours_meas_1280_1408_val():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-val"
+def ours_diffusercam_val():
+    exp_name = "ours-fft-diffusercam-1280-1408-val"
     # learning_rate = 3e-4
     # fft_learning_rate = 4e-10
     batch_size = 5
     num_threads = 5
 
-def ours_meas_1280_1408_single():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-single"
+def ours_diffusercam_single():
+    exp_name = "ours-fft-diffusercam-1280-1408-single"
     batch_size = 5
     num_threads = 5
 
-def ours_meas_1280_1408_unet_64():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-64"
+def ours_diffusercam_unet_64():
+    exp_name = "ours-fft-diffusercam-1280-1408-unet-64"
     model = "unet-64-pixelshuffle-invert"
 
 
-def ours_meas_1280_1408_unet_32():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-32"
+def ours_diffusercam_unet_32():
+    exp_name = "ours-fft-diffusercam-1280-1408-unet-32"
     model = "unet-32-pixelshuffle-invert"
 
 
-def ours_meas_1280_1408_simulated():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-simulated"
+def ours_diffusercam_simulated():
+    exp_name = "ours-fft-diffusercam-1280-1408-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
 
 def ours_meas_990_1254():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-990-1254"
+    exp_name = "ours-fft-diffusercam-990-1254"
 
     meas_crop_size_x = 990
     meas_crop_size_y = 1254
@@ -460,7 +448,7 @@ def ours_meas_990_1254():
 
 
 def ours_meas_990_1254_simulated():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-990-1254-simulated"
+    exp_name = "ours-fft-diffusercam-990-1254-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 990
@@ -470,7 +458,7 @@ def ours_meas_990_1254_simulated():
 
 
 def ours_meas_864_1120():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-864-1120-big-mask"
+    exp_name = "ours-fft-diffusercam-864-1120-big-mask"
 
     meas_crop_size_x = 864
     meas_crop_size_y = 1120
@@ -480,7 +468,7 @@ def ours_meas_864_1120():
 
 
 def ours_meas_864_1120_simulated():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-864-1120-simulated"
+    exp_name = "ours-fft-diffusercam-864-1120-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 864
@@ -491,7 +479,7 @@ def ours_meas_864_1120_simulated():
 
 
 def ours_meas_608_864():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-608-864-big-mask"
+    exp_name = "ours-fft-diffusercam-608-864-big-mask"
 
     meas_crop_size_x = 608
     meas_crop_size_y = 864
@@ -501,7 +489,7 @@ def ours_meas_608_864():
 
 
 def ours_meas_608_864_simulated():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-608-864-simulated-big-mask"
+    exp_name = "ours-fft-diffusercam-608-864-simulated-big-mask"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 608
@@ -512,7 +500,7 @@ def ours_meas_608_864_simulated():
 
 
 def ours_meas_512_640():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-512-640-big-mask"
+    exp_name = "ours-fft-diffusercam-512-640-big-mask"
 
     meas_crop_size_x = 512
     meas_crop_size_y = 640
@@ -522,7 +510,7 @@ def ours_meas_512_640():
 
 
 def ours_meas_512_640_simulated():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-512-640-simulated"
+    exp_name = "ours-fft-diffusercam-512-640-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 512
@@ -532,7 +520,7 @@ def ours_meas_512_640_simulated():
 
 
 def ours_meas_400_400():
-    exp_name = "ours-fft-1280-1408-learn-1280-1408-meas-400-400-big-mask"
+    exp_name = "ours-fft-diffusercam-400-400-big-mask"
 
     meas_crop_size_x = 400
     meas_crop_size_y = 400
@@ -541,9 +529,9 @@ def ours_meas_400_400():
     mask_path = Path("data/phase_psf/box_gaussian_1280_1408_big_mask.npy")
 
 
-def ours_meas_1280_1408_finetune_dualcam_1cap():
+def ours_diffusercam_finetune_dualcam_1cap():
     exp_name = (
-        "ours-fft-1280-1408-learn-1280-1408-meas-1280-1408-finetune-dualcam-fullG-1cap"
+        "ours-fft-diffusercam-1280-1408-finetune-dualcam-fullG-1cap"
     )
 
     num_epochs = 63
@@ -567,7 +555,7 @@ def ours_meas_1280_1408_finetune_dualcam_1cap():
 
 def ours_meas_608_864_finetune_dualcam_1cap():
     exp_name = (
-        "ours-fft-1280-1408-learn-1280-1408-meas-608-864-finetune-dualcam-fullG-1cap"
+        "ours-fft-diffusercam-608-864-finetune-dualcam-fullG-1cap"
     )
 
     num_epochs = 127
@@ -602,7 +590,7 @@ def ours_meas_608_864_finetune_dualcam_1cap():
 
 def ours_meas_990_1254_finetune_dualcam_1cap():
     exp_name = (
-        "ours-fft-1280-1408-learn-1280-1408-meas-990-1254-finetune-dualcam-fullG-1cap"
+        "ours-fft-diffusercam-990-1254-finetune-dualcam-fullG-1cap"
     )
 
     num_epochs = 127
@@ -636,26 +624,26 @@ def ours_meas_990_1254_finetune_dualcam_1cap():
 
 
 def naive_meas_1280_1408():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408"
+    exp_name = "naive-fft-diffusercam-1280-1408"
 
 
 def naive_meas_1280_1408_unet_64():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-64"
+    exp_name = "naive-fft-diffusercam-1280-1408-unet-64"
     model = "unet-64-pixelshuffle-invert"
 
 
 def naive_meas_1280_1408_unet_32():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-32"
+    exp_name = "naive-fft-diffusercam-1280-1408-unet-32"
     model = "unet-32-pixelshuffle-invert"
 
 
 def naive_meas_1280_1408_simulated():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408-simulated"
+    exp_name = "naive-fft-diffusercam-1280-1408-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
 
 def naive_meas_990_1254():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-990-1254-big-mask"
+    exp_name = "naive-fft-diffusercam-990-1254-big-mask"
 
     meas_crop_size_x = 990
     meas_crop_size_y = 1254
@@ -665,7 +653,7 @@ def naive_meas_990_1254():
 
 
 def naive_meas_990_1254_simulated():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-990-1254-simulated"
+    exp_name = "naive-fft-diffusercam-990-1254-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 990
@@ -675,7 +663,7 @@ def naive_meas_990_1254_simulated():
 
 
 def naive_meas_864_1120():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-864-1120-big-mask"
+    exp_name = "naive-fft-diffusercam-864-1120-big-mask"
 
     meas_crop_size_x = 864
     meas_crop_size_y = 1120
@@ -685,7 +673,7 @@ def naive_meas_864_1120():
 
 
 def naive_meas_864_1120_simulated():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-864-1120-simulated"
+    exp_name = "naive-fft-diffusercam-864-1120-simulated"
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
     meas_crop_size_x = 864
@@ -695,7 +683,7 @@ def naive_meas_864_1120_simulated():
 
 
 def naive_meas_608_864():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-608-864-big-mask"
+    exp_name = "naive-fft-diffusercam-608-864-big-mask"
 
     meas_crop_size_x = 608
     meas_crop_size_y = 864
@@ -705,7 +693,7 @@ def naive_meas_608_864():
 
 
 def naive_meas_608_864_simulated():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-608-864-simulated-big-mask"
+    exp_name = "naive-fft-diffusercam-608-864-simulated-big-mask"
 
     meas_crop_size_x = 608
     meas_crop_size_y = 864
@@ -717,7 +705,7 @@ def naive_meas_608_864_simulated():
 
 
 def naive_meas_512_640():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-512-640-big-mask"
+    exp_name = "naive-fft-diffusercam-512-640-big-mask"
 
     meas_crop_size_x = 512
     meas_crop_size_y = 640
@@ -727,7 +715,7 @@ def naive_meas_512_640():
 
 
 def naive_meas_512_640_simulated():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-512-640-simulated"
+    exp_name = "naive-fft-diffusercam-512-640-simulated"
 
     meas_crop_size_x = 512
     meas_crop_size_y = 640
@@ -738,7 +726,7 @@ def naive_meas_512_640_simulated():
 
 
 def naive_meas_400_400():
-    exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-400-400-big-mask"
+    exp_name = "naive-fft-diffusercam-400-400-big-mask"
 
     meas_crop_size_x = 400
     meas_crop_size_y = 400
@@ -747,28 +735,28 @@ def naive_meas_400_400():
     mask_path = Path("data/phase_psf/box_gaussian_1280_1408_big_mask.npy")
 
 
-def le_admm_meas_1280_1408():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-1280-1408"
+
+
 
 
 def le_admm_meas_1280_1408_unet_64():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-64"
+    exp_name = "le-admm-fft-diffusercam-1280-1408-unet-64"
     model = "unet-64-pixelshuffle-invert"
 
 
 def le_admm_meas_1280_1408_unet_32():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-1280-1408-unet-32"
+    exp_name = "le-admm-fft-diffusercam-1280-1408-unet-32"
     model = "unet-32-pixelshuffle-invert"
 
 
 def le_admm_meas_1280_1408_simulated():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-1280-1408-simulated"
+    exp_name = "le-admm-fft-diffusercam-1280-1408-simulated"
 
     psf_mat = Path("data/phase_psf/sim_psf.npy")
 
 
 def le_admm_meas_990_1254():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-990-1254"
+    exp_name = "le-admm-fft-diffusercam-990-1254"
 
     meas_crop_size_x = 990
     meas_crop_size_y = 1254
@@ -777,7 +765,7 @@ def le_admm_meas_990_1254():
 
 
 def le_admm_meas_990_1254_simulated():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-990-1254-simulated"
+    exp_name = "le-admm-fft-diffusercam-990-1254-simulated"
     meas_crop_size_x = 990
     meas_crop_size_y = 1254
 
@@ -786,7 +774,7 @@ def le_admm_meas_990_1254_simulated():
 
 
 def le_admm_meas_864_1120():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-864-1120"
+    exp_name = "le-admm-fft-diffusercam-864-1120"
 
     meas_crop_size_x = 840
     meas_crop_size_y = 1120
@@ -795,7 +783,7 @@ def le_admm_meas_864_1120():
 
 
 def le_admm_meas_864_1120_simulated():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-864-1120-simulated"
+    exp_name = "le-admm-fft-diffusercam-864-1120-simulated"
     meas_crop_size_x = 840
     meas_crop_size_y = 1120
 
@@ -804,7 +792,7 @@ def le_admm_meas_864_1120_simulated():
 
 
 def le_admm_meas_608_864():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-608-864"
+    exp_name = "le-admm-fft-diffusercam-608-864"
     meas_crop_size_x = 608
     meas_crop_size_y = 864
 
@@ -812,7 +800,7 @@ def le_admm_meas_608_864():
 
 
 def le_admm_meas_608_864_simulated():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-608-864-simulated"
+    exp_name = "le-admm-fft-diffusercam-608-864-simulated"
     meas_crop_size_x = 608
     meas_crop_size_y = 864
 
@@ -821,7 +809,7 @@ def le_admm_meas_608_864_simulated():
 
 
 def le_admm_meas_512_640():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-512-640"
+    exp_name = "le-admm-fft-diffusercam-512-640"
     meas_crop_size_x = 512
     meas_crop_size_y = 640
 
@@ -829,7 +817,7 @@ def le_admm_meas_512_640():
 
 
 def le_admm_meas_512_640_simulated():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-512-640-simulated"
+    exp_name = "le-admm-fft-diffusercam-512-640-simulated"
     meas_crop_size_x = 608
     meas_crop_size_y = 864
 
@@ -838,7 +826,7 @@ def le_admm_meas_512_640_simulated():
 
 
 def le_admm_meas_400_400():
-    exp_name = "le-admm-fft-1280-1408-learn-1280-1408-meas-512-640"
+    exp_name = "le-admm-fft-diffusercam-512-640"
     meas_crop_size_x = 400
     meas_crop_size_y = 400
 
@@ -847,10 +835,10 @@ def le_admm_meas_400_400():
 
 named_config_ll = [
     # Ours
-    ours_meas_1280_1408,
-    ours_meas_1280_1408_single,
-    ours_meas_1280_1408_val,
-    ours_meas_1280_1408_simulated,
+    ours_diffusercam,
+    ours_diffusercam_single,
+    ours_diffusercam_val,
+    ours_diffusercam_simulated,
     ours_meas_990_1254,
     ours_meas_990_1254_simulated,
     ours_meas_864_1120,
@@ -873,7 +861,7 @@ named_config_ll = [
     naive_meas_512_640_simulated,
     naive_meas_400_400,
     # Le ADMM
-    le_admm_meas_1280_1408,
+    le_admm_diffusercam,
     le_admm_meas_1280_1408_simulated,
     le_admm_meas_990_1254,
     le_admm_meas_990_1254_simulated,
@@ -885,42 +873,37 @@ named_config_ll = [
     le_admm_meas_512_640_simulated,
     le_admm_meas_400_400,
     # Finetune
-    ours_meas_1280_1408_finetune_dualcam_1cap,
+    ours_diffusercam_finetune_dualcam_1cap,
     ours_meas_608_864_finetune_dualcam_1cap,
     ours_meas_990_1254_finetune_dualcam_1cap,
     # Unet 64
-    ours_meas_1280_1408_unet_64,
+    ours_diffusercam_unet_64,
     naive_meas_1280_1408_unet_64,
     le_admm_meas_1280_1408_unet_64,
     # Unet 32
-    ours_meas_1280_1408_unet_32,
+    ours_diffusercam_unet_32,
     naive_meas_1280_1408_unet_32,
     le_admm_meas_1280_1408_unet_32,
     #decoded_sim
-    ours_meas_1280_1408_decoded_sim,
-    ours_meas_1280_1408_decoded_sim_val_train,
-    ours_meas_1280_1408_decoded_sim_ad,
-    ours_meas_1280_1408_decoded_sim_unet_new,
-    #multi + decoded_sim
-    ours_meas_1280_1408_decoded_sim_multi,
-    ours_meas_1280_1408_decoded_sim_multi_ad,
-    ours_meas_1280_1408_decoded_sim_multi_ad_no_add_grad,
-    ours_meas_1280_1408_decoded_sim_multi_mask,
-    ours_meas_1280_1408_decoded_sim_multi9_mask,
-    
-    ours_meas_1280_1408_decoded_sim_multi9_mask_cunet,
-    ours_meas_1280_1408_decoded_sim_multi_cunet,
+    ours_diffusercam_decoded_sim,
+    ours_diffusercam_decoded_sim_val_train,
+    ours_diffusercam_decoded_sim_ad,
+    ours_diffusercam_decoded_sim_multi_ad_no_add_grad,
     #no decoded_sim
-    ours_meas_1280_1408_multi,
-    ours_meas_1280_1408_decoded_sim_multi_shift,
-    #mulnew
-    ours_meas_1280_1408_decoded_sim_mulnew9_mask,
-    ours_meas_1280_1408_mulnew,
-    ours_meas_1280_1408_decoded_sim_mulnew9,
-    ours_meas_1280_1408_decoded_sim_mulnew9_no_weight_update,
-    ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle,
-    ours_meas_1280_1408_decoded_sim_mulnew9_unet_new,
-    ours_meas_1280_1408_decoded_sim_mulnew9_l1,
+    ours_diffusercam_multi,
+    ours_diffusercam_mulnew,
+    ours_diffusercam_decoded_sim_mulnew9,
+    ours_diffusercam_decoded_sim_mulnew9_no_weight_update,
+    ours_diffusercam_decoded_sim_mulnew9_no_pixelshuffle,
+    ours_diffusercam_decoded_sim_mulnew9_unet_new,
+    ours_diffusercam_decoded_sim_mulnew9_l1,
+    #concat_input
+    ours_diffusercam_concat_input,
+    ours_diffusercam_mulnew_concat_input,
+    ours_diffusercam_mulnew_unet,
+    ours_diffusercam_mulnew_unet_padding,
+    ours_diffusercam_mulnew_unet_zero_conv,
+    ours_diffusercam_mulnew_unet_padding_decode_sim
    
 ]
 
@@ -931,35 +914,37 @@ def initialise(ex):
         ex.named_config(named_config)
     return ex
 
-
+height = 270 * 4
+width = 480 * 4
 fft_args = {
-    "psf_mat": Path("data/phase_psf/psf.npy"),
-    "psf_height": 1518,
-    "psf_width": 2012,
-    "psf_centre_x": 808 + 10,
-    "psf_centre_y": 965 + 10,
-    "psf_crop_size_x": 1280,
-    "psf_crop_size_y": 1408,
-    "meas_height": 1518,
-    "meas_width": 2012,
-    "meas_centre_x": 808,
-    "meas_centre_y": 965,
-    "meas_crop_size_x": 1280,
-    "meas_crop_size_y": 1408,
+    "psf_mat": Path("data/diffusercam/psf.tiff"),
+    "psf_height": height,
+    "psf_width": width,
+    "psf_centre_x": height // 2,
+    "psf_centre_y": width // 2,
+    "psf_crop_size_x": height,
+    "psf_crop_size_y": width,
+    "meas_height": height,
+    "meas_width": width,
+    "meas_centre_x": height // 2,
+    "meas_centre_y": width // 2,
+    "meas_crop_size_x": height,
+    "meas_crop_size_y": width,
     "pad_meas_mode": "replicate",
     # Change meas_crop_size_{x,y} to crop sensor meas. This will assume your sensor is smaller than the
     # measurement size. True measurement size is 1280x1408x4. Anything smaller than this requires padding of the
     # cropped measurement and then multiplying this with gaussian filtered rectangular box. For simplicity use the arguments
     # already set. Currently we are using full measurement. 
-    "image_height": 384,
-    "image_width": 384,
-    "fft_gamma": 2e4,  # Gamma for Weiner init
+    "image_height": 270,
+    "image_width": 480,
+    "fft_gamma": 100,  # Gamma for Weiner init
     "use_mask": False,  # Use mask for cropped meas only
     "mask_path": Path("data/phase_psf/box_gaussian_1280_1408.npy"),
     # use Path("box_gaussian_1280_1408.npy") for controlled lighting
     # use Path("box_gaussian_1280_1408_big_mask.npy") for uncontrolled lighting
     "fft_requires_grad": False,
-    "fft_epochs": 0
+    "fft_epochs": 0,
+    "concat_input": False,
 } 
 
 fft_args = SimpleNamespace(**fft_args)

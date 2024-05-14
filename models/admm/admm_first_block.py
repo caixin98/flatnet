@@ -73,14 +73,23 @@ class ADMM_Net(nn.Module):
 
         ## Initialize constants 1518 x 2012
         h = np.load(args.psf_mat)
+        # to 1 dim
+     
+        if len(h.shape) == 3:
+            h = np.mean(h, axis=2)
+            h = resize(h, 0.25)
+        # print("h.shape", h.shape)
         psf_crop_top = args.psf_centre_x - args.psf_crop_size_x // 2
         psf_crop_bottom = args.psf_centre_x + args.psf_crop_size_x // 2
         psf_crop_left = args.psf_centre_y - args.psf_crop_size_y // 2
         psf_crop_right = args.psf_centre_y + args.psf_crop_size_y // 2
 
         h = h[psf_crop_top:psf_crop_bottom, psf_crop_left:psf_crop_right]
+        if args.psf_mat.name.endswith("psf_flip.npy"):
+            self.factor = 1
+        else:
+            self.factor = factor
 
-        self.factor = factor
         h = resize(h, self.factor)
         if args.normalise_admm_psf:
             h /= np.linalg.norm(h.ravel())
@@ -117,9 +126,11 @@ class ADMM_Net(nn.Module):
             torch.fft(batch_ifftshift2d(self.h_complex).squeeze(), 2),
             requires_grad=False,
         )
+        # print("H.shape", self.H.shape)
         self.Hconj = nn.Parameter(
             self.H * torch.tensor([1, -1]).float(), requires_grad=False
         )
+        # print("Hconj.shape", self.Hconj.shape)
         self.HtH = nn.Parameter(
             complex_abs(complex_multiplication(self.H, self.Hconj)), requires_grad=False
         )

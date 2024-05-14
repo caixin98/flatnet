@@ -136,6 +136,8 @@ def Hadj(model, x):
     xc = torch.stack((x, torch.zeros_like(x, dtype=torch.float32)), -1)
     # X = torch.fft(batch_ifftshift2d(xc),2)
     X = torch.fft(xc, 2)
+    # print("X............", X.shape)
+    # print("model.Hconj", model.Hconj.shape)
     HX = complex_multiplication(model.Hconj, X)
     # out = batch_ifftshift2d(torch.ifft(HX,2))
     out = torch.ifft(HX, 2)
