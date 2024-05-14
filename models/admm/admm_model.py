@@ -134,7 +134,7 @@ class ADMM_Net(nn.Module):
 
         self.batch_size = inputs.shape[0]
 
-        # self.HtH = complex_abs(complex_multiplication(self.H, self.Hconj))
+        # self.HtH = ========================(complex_multiplication(self.H, self.Hconj))
 
         self.mu_vals = torch.stack([self.mu1, self.mu2, self.mu3, self.tau])
 

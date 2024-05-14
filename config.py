@@ -24,8 +24,8 @@ def base_config():
 
     image_dir = Path("data")
     output_dir = Path("output_phase_mask_Feb_2020_size_384") / exp_name
-    ckpt_dir = Path("flatnet_oss/ckpts_phase_mask_Feb_2020_size_384") / exp_name
-    run_dir = Path("flatnet_oss/runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
+    ckpt_dir = Path("ckpts_phase_mask_Feb_2020_size_384") / exp_name
+    run_dir = Path("runs_phase_mask_Feb_2020_size_384") / exp_name  # Tensorboard
     test_image_dir = image_dir / "PhaseCapture_Webcam" / "saves"
 
     # ---------------------------------------------------------------------------- #
@@ -82,7 +82,7 @@ def base_config():
     image_height = 384
     image_width = 384
 
-    batch_size = 18
+    batch_size = 10
     num_threads = batch_size >> 1  # parallel workers
 
     # ---------------------------------------------------------------------------- #
@@ -655,6 +655,7 @@ def ours_meas_990_1254_finetune_dualcam_1cap():
 
 def naive_meas_1280_1408():
     exp_name = "naive-fft-1280-1408-learn-1280-1408-meas-1280-1408"
+    lambda_adversarial = 0.0
 
 
 def naive_meas_1280_1408_unet_64():

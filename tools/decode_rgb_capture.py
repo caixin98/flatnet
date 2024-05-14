@@ -47,7 +47,7 @@ def decode_capture(FFT, obj_path, save_path):
     print("docoded max: ", decoded.max())
     decoded = (decoded - decoded.min()) / (decoded.max() - decoded.min())
     decoded = decoded * 255
-    decoded = decoded.squeeze().permute(1, 2, 0).numpy().astype(np.uint8)
+    decoded = decoded.squeeze().permute(1, 2, 0).detach().numpy().astype(np.uint8)
     # decoded = cv2.cvtColor(decoded, cv2.COLOR_RGB2BGR)
     # save image
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -66,6 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     obj_path = args.obj_path
     save_path = args.save_path
-    save_path = os.path.join(save_path, os.path.basename(obj_path))
+    # save_path = os.path.join(save_path, os.path.basename(obj_path))
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     decode_capture_dir(FFT, obj_path, save_path)
+#python tools/decode_rgb_capture.py --obj_path data/flatnet_val/real_capture --save_path data/flatnet_val/inputs

@@ -110,8 +110,10 @@ def main():
                     if os.path.isfile(raw_data_file_path):
                         raw_data_files.append(os.path.join(cls, raw_data_file))        
         for raw_data_file in raw_data_files:
-            raw_data = load_raw_data(os.path.join(raw_data_path, raw_data_file), bit_depth)
-            save_image(raw_data, raw_data_file, visual_folder)
+            if raw_data_file.split('/')[-1] not in os.listdir("/root/caixin/flatnet/data/flatnet/real_captures"):
+                print('Processing {}'.format(raw_data_file))
+                raw_data = load_raw_data(os.path.join(raw_data_path, raw_data_file), bit_depth)
+                save_image(raw_data, raw_data_file, visual_folder)
     else:
         raw_data_folder = os.path.basename(os.path.dirname(os.path.dirname(raw_data_path)))
         raw_data_file = os.path.basename(raw_data_path)

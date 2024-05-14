@@ -4,10 +4,8 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms.functional import (
-    InterpolationMode,
     to_tensor,
     resize,
-    rgb_to_grayscale,
 )
 
 from dataclasses import dataclass

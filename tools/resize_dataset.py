@@ -3,8 +3,10 @@ import os
 import cv2
 import numpy as np
 from tqdm import tqdm
-dataset_path = '/root/caixin/StableSR/data/flatnet/decoded_sim_captures'
-resize_path = "/root/caixin/StableSR/data/flatnet/decoded_sim_captures"
+# dataset_path = '/root/caixin/StableSR/data/flatnet/decoded_sim_captures'
+# resize_path = "/root/caixin/StableSR/data/flatnet/decoded_sim_captures"
+dataset_path = '/root/caixin/StableSR/data/flatnet_val/inputs'
+resize_path = "/root/caixin/StableSR/data/flatnet_val/inputs_512"
 resize_size = (512, 512)
 os.makedirs(resize_path, exist_ok=True)
 for img_name in tqdm(os.listdir(dataset_path)):
