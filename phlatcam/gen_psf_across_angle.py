@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import numpy as np
+import time
 from PIL import Image
 from scipy.ndimage import gaussian_gradient_magnitude
 from skimage.filters import sobel
@@ -118,7 +119,7 @@ method = 'fp'
 numIters = 20
 zMS = 1869 / 6
 pxSz = 0.4
-for i in range(30):
+for i in range(29,30):
     sin_phase_mask = np.zeros((phMm.shape[0], phMm.shape[1]))
     tan_phase_mask = np.zeros((phMm.shape[0], phMm.shape[1]))
     for j in range(sin_phase_mask.shape[1]):
@@ -137,4 +138,15 @@ for i in range(30):
     # visualize the PSF at the sensor plane
     plt.imsave('psf_results/psf_sensor_tan_%d.png'%i, psf_sensor, cmap='gray')
     
+    #direct_integration
+    wavefront = np.exp(1j * (phMm + sin_phase_mask))
+    print("direct_integration begin")
+    start = time.time()
+    psf_sensor = direct_integration(wavefront, lambd, pxSz, zMS, x_asm[0], y_asm)
+    psf_sensor = percentile_normalization(np.abs(psf_sensor)**2)
+    # visualize the PSF at the sensor plane
+    plt.imsave('psf_results/psf_sensor_di_sin_%d.png'%i, psf_sensor, cmap='gray')
+    print("direct_integration end")
+    end = time.time()
+    print("direct_integration time: ", end - start)
     # break

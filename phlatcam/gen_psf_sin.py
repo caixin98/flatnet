@@ -76,7 +76,7 @@ def resize_image(image_array, new_width, method=Image.NEAREST):
 
 # Parameters
 pName = 'perlin12_20_example'
-minFeature = 1.4  # um Width of contour
+minFeature = 1.05  # um Width of contour
 pxSz = 0.35  # Placeholder for pixel size, adjust as needed
 
 # Perlin noise generation
@@ -115,7 +115,7 @@ import matplotlib.pyplot as plt
 plt.imsave('results/psf.png', psf, cmap='gray')
 
 
-p = 6
+p = 13
 #generate a phase mask: the (x, y) is 2 * pi / lambd * sin\theta * pxSz * y 
 sin_phase_mask = np.zeros((psf.shape[0], psf.shape[1]))
 tan_phase_mask = np.zeros((psf.shape[0], psf.shape[1]))
@@ -135,11 +135,11 @@ netLenXY = np.array(psf.shape) * pxSz
 
 # phMm + sin_phase_mask
 wavefront = np.exp(1j * (sin_phase_mask))
-# generate the PSF at the sensor plane
-psf_sensor = prop2D(wavefront, netLenXY, lambd, zMS, method = "fp")
-psf_sensor = percentile_normalization(np.abs(psf_sensor)**2)
-# visualize the PSF at the sensor plane
-plt.imsave('results/psf_sensor_sin_%d.png'%p, psf_sensor, cmap='gray')
+# # generate the PSF at the sensor plane
+# psf_sensor = prop2D(wavefront, netLenXY, lambd, zMS, method = "fp")
+# psf_sensor = percentile_normalization(np.abs(psf_sensor)**2)
+# # visualize the PSF at the sensor plane
+# plt.imsave('results/psf_sensor_sin_%d.png'%p, psf_sensor, cmap='gray')
 
 # using angular spectrum method
 psf_sensor, x_asm , y_asm = angular_spectrum_np(wavefront, lambd, pxSz, zMS, N_out = (psf.shape[0] * 2, psf.shape[1] * 2)) 

@@ -217,13 +217,13 @@ zMS = 1869 / 6
 import matplotlib.pyplot as plt
 plt.imsave('results/psf.png', psf, cmap='gray')
 
-phMm, Mm, MsA = genPhaseMask(psf, lambd, pxSz, zMS, numIters, method)
-# # # save the phase mask as npy file
-np.save('results/phMm.npy', phMm)
+# phMm, Mm, MsA = genPhaseMask(psf, lambd, pxSz, zMS, numIters, method)
+# # # # save the phase mask as npy file
+# np.save('results/phMm.npy', phMm)
 # load the phase mask
 phMm = np.load('results/phMm.npy')
 print(phMm.shape, phMm.min(), phMm.max())
-p = 6
+p = 14
 #generate a phase mask: the (x, y) is 2 * pi / lambd * sin\theta * pxSz * y 
 sin_phase_mask = np.zeros((psf.shape[0], psf.shape[1]))
 tan_phase_mask = np.zeros((psf.shape[0], psf.shape[1]))

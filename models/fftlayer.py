@@ -76,8 +76,7 @@ class FFTLayer(nn.Module):
         super().__init__()
         self.args = args
         # No grad if you're not training this layer
-        requires_grad = not (args.fft_epochs == args.num_epochs)
-        
+        requires_grad = False
         # requires_grad = args.fft_requires_grad
         # if args.psf_mat.endswith(".npy"):
         psf = torch.tensor(np.load(args.psf_mat)).float()
