@@ -247,6 +247,8 @@ def ours_diffusercam_mulnew_unet_padding():
     preprocess_with_unet = True
     psf_height = 270 * 2
     psf_width = 480 * 2
+    num_epochs = 40
+
     
 
 def ours_diffusercam_mulnew_unet_padding_decode_sim():
