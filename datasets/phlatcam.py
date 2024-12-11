@@ -87,11 +87,14 @@ class PhaseMaskDataset(Dataset):
 
     def _img_load(self, img_path: "Path" = None, img_mode="source", raw=[]):
         assert img_path or len(raw), "need either path or raw image"
-        assert img_mode in ["source", "target"]
+        assert img_mode in ["source", "target", "source_png"], "img_mode not supported"
         if img_mode == "target":
             img = cv2.imread(str(img_path))[:, :, ::-1] / 255.0
 
             img = cv2.resize(img, (self.args.image_width, self.args.image_height))
+        
+        elif img_mode == "source_png":
+            img = cv2.imread(str(img_path))[:, :, ::-1] / 255.0
 
         elif img_mode == "source":
             if not len(raw):
@@ -170,21 +173,21 @@ class PhaseMaskDataset(Dataset):
             source_path = self.source_path
 
 
-        source = self._img_load(source_path, img_mode="source")
+        source = self._img_load(source_path, img_mode="source_png")
 
         if self.mode == "test":
             return source.float(), f"{source_path.parent.name}/{source_path.name}"
 
-        if self.mode == "train":
-            source = source + torch.normal(
-                torch.zeros_like(source), self.args.train_gaussian_noise
-            )
+        # if self.mode == "train":
+        #     source = source + torch.normal(
+        #         torch.zeros_like(source), self.args.train_gaussian_noise
+        #     )
 
         target_path = self.target_paths[index]
         target = self._img_load(target_path, img_mode="target")
-
+        # print(source.shape, target.shape)
         return (
-            source.float(),
+           torch.from_numpy(source.copy()).float(),
             torch.from_numpy(target.copy()).float(),
             source_path.name,
         )

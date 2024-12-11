@@ -169,6 +169,17 @@ def ours_meas_1280_1408():
 
     # val_train = True
 
+def ours_meas_1280_1408_sim():
+    exp_name = "fft-1280-1408-sim"
+    # learning_rate = 3e-4
+    # fft_learning_rate = 4e-10
+    batch_size = 5
+    num_threads = 5
+    train_source_list = "data/text_files/train_source_sim.txt"
+    val_source_list = "data/text_files/val_source_sim.txt"
+    # lambda_adversarial = 0.6
+
+
 def ours_meas_1280_1408_no_ad():
     exp_name = "fft-1280-1408-learn-1280-1408-meas-no_ad"
     # learning_rate = 3e-4
@@ -253,7 +264,7 @@ def ours_meas_1280_1408_mulnew():
     num_threads = 5
     # val_train = True
     lambda_adversarial = 0.0
-    multi = 9
+    multi = 10
     use_spatial_weight = True
 
 
@@ -952,6 +963,8 @@ named_config_ll = [
     ours_meas_1280_1408_decoded_sim_mulnew9_no_pixelshuffle,
     ours_meas_1280_1408_decoded_sim_mulnew9_unet_new,
     ours_meas_1280_1408_decoded_sim_mulnew9_l1,
+
+    ours_meas_1280_1408_sim,
    
 ]
 

@@ -20,3 +20,6 @@ PerceptualSimilarity/models/weights/*/*.pth
 *.icloud
 .DS_Store
 *.npy
+*.mp4
+*.jpg
+*.mov

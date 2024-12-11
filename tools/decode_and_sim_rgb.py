@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 import sys
 from pathlib import Path
-from waveprop.devices import  SensorParam
+# from waveprop.devices import  SensorParam
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from models.fftlayer import FFTLayer
 from config import fft_args
@@ -107,8 +107,8 @@ def load_sim_save(simulator, obj_path, save_path, use_adjust_light_intensity=Fal
     # capture = torch.tensor(img).permute(2, 0, 1).unsqueeze(0).float()
     
     capture = img
-    # decoded = capture
-    decoded = FFT(capture)
+    decoded = capture
+    # decoded = FFT(capture)
     decoded = (decoded - decoded.min()) / (decoded.max() - decoded.min())
     decoded = decoded * 255
     decoded = decoded.squeeze().permute(1, 2, 0).detach().numpy().astype(np.uint8)    
@@ -133,6 +133,7 @@ if __name__ == "__main__":
     psf = psf[..., None]
     print(psf.shape)
     psf = crop_and_padding(psf)
+    psf = torch.tensor(psf).permute(2, 0, 1).unsqueeze(0).float()
     # transfer the psf 
     simulator = FarFieldSimulator(object_height = 0.4, scene2mask = 0.434, mask2sensor = 2e-3, sensor = sensor, psf = psf, is_torch=True, quantize=False, return_float=True)
 
@@ -145,5 +146,11 @@ if __name__ == "__main__":
         load_sim_save(simulator, obj_path, save_path, use_adjust_light_intensity=adj)
 
 # python tools/decode_and_sim_rgb.py --psf_path data/phase_psf/psf.npy --obj_path /root/caixin/StableSR/data/flatnet_val/gts --save_path /root/caixin/StableSR/data/flatnet_val/sim_captures
-# python tools/decode_and_sim_rgb.py --obj_path  /root/caixin/StableSR/data/flatnet/gts/n01440764_457.png
+# python tools/decode_and_sim_rgb.py --obj_path  data/flatnet/inputs/n01440764_457.png
 
+# python tools/decode_and_sim_rgb.py  --obj_path /root/StableSR/data/flatnet_val/gts --save_path /root/StableSR/data/flatnet_val/sim_captures
+
+# python tools/decode_and_sim_rgb.py  --obj_path /root/RawSense/LenslessPiCam/outputs/2024-08-12/11-43-17/SimPhlatCam_raw_1518x2012 --save_path /root/StableSR/data/flatnet_val/decoded_sim_captures_disfa
+
+
+#python tools/decode_and_sim_rgb.py  --obj_path /root/StableSR/data/flatnet_sim_output_384_val/inputs --save_path /root/StableSR/data/flatnet_sim_output_384_val/decoded_sim_captures

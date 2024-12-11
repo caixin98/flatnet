@@ -52,7 +52,7 @@ def model(args):
 
     else:
         if not is_diff:
-            in_c = 4
+            in_c = 3
             Inversion = FFTLayer
 
         else:

@@ -12,7 +12,7 @@ from pathlib import Path
 # Torch Libs
 import torch
 from torch.nn import functional as F
-
+import time
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
@@ -87,7 +87,7 @@ def main(_run):
         gen_ckpt = torch.load(model_gen_path, map_location=torch.device("cpu"))
         fft_ckpt = torch.load(model_fft_path, map_location=torch.device("cpu"))
 
-        # G.load_state_dict(gen_ckpt["state_dict"])
+    #     # G.load_state_dict(gen_ckpt["state_dict"])
         load_state_dict(G, gen_ckpt["state_dict"])
         load_state_dict(FFT, fft_ckpt["state_dict"])
 
@@ -146,6 +146,7 @@ def main(_run):
     )
     test_path.mkdir(exist_ok=True, parents=True)
 
+    acc_time = 0.0
     with torch.no_grad():
         G.eval()
         FFT.eval()
@@ -157,7 +158,7 @@ def main(_run):
 
             if args.device == "cuda:0" and i:
                 start.record()
-
+            start_time = time.time()
             fft_output = FFT(source)
             
             if is_admm:
@@ -170,6 +171,8 @@ def main(_run):
             output_unpixel_shuffled = G(fft_unpixel_shuffled)
 
             output = F.pixel_shuffle(output_unpixel_shuffled, args.pixelshuffle_ratio)
+            
+            acc_time += time.time() - start_time
 
             if args.device == "cuda:0" and i:
                 end.record()
@@ -250,7 +253,7 @@ def main(_run):
             ]
             L = L + [f"{k}:{v}\n" for k, v in avg_metrics.loss_dict.items()]
             f.writelines(L)
-
+        print("acc_time", acc_time)
         if data.test_loader:
             pbar = tqdm(
                 range(len(data.test_loader) * args.batch_size), dynamic_ncols=True
